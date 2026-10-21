@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Merged with GENERATE_INFOPLIST_FILE — Sparkle keys for Developer ID builds only. -->
+	<key>SUFeedURL</key>
+	<string>https://laradeck.brokenice.it/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>7rJb4D8aoKN22+5xqajoU0rBKBUnRqL71zYPgcgoyPQ=</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Laradeck uses the local network so you can share a project .env with a colleague running Laradeck on the same Wi‑Fi or LAN.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_laradeck-env._tcp</string>
+	</array>
+	<!-- In-app process sequence drag (must match UTType.laradeckSequenceDrag). -->
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>it.brokenice.laradeck.sequence-drag</string>
+			<key>UTTypeDescription</key>
+			<string>Laradeck Sequence Drag</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>it.brokenice.laradeck.sidebar-project-drag</string>
+			<key>UTTypeDescription</key>
+			<string>Laradeck Sidebar Project Drag</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>it.brokenice.laradeck.sidebar-group-drag</string>
+			<key>UTTypeDescription</key>
+			<string>Laradeck Sidebar Group Drag</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

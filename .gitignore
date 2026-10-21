@@ -1,0 +1,58 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Xcode
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+*.moved-aside
+*.hmap
+DerivedData/
+build/
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.swiftpm/
+.build/
+
+# Local tooling
+.claude/
+.cursor/
+
+# Apple signing / App Store Connect (never commit)
+*.p8
+*.p12
+*.cer
+*.certSigningRequest
+*.mobileprovision
+AuthKey_*.p8
+**/AuthKey_*.p8
+
+# Env / local secrets (fixtures under laradeckTests/ are intentional)
+.env
+.env.*
+!.env.example
+!laradeckTests/Fixtures/**/.env
+
+# Website (deployed separately, kept local only)
+website/
+
+# Sparkle signing keys (private key must never be published)
+secrets/
+
+# Built / packaged artifacts
+dist/
+*.dmg
+*.pkg
+LaraDeck*.zip
+Laradeck*.zip
+
+# Design source (Affinity) — keep out of the public tree
+*.af
+
+# Internal release runbook (Team ID, notarize, hosting) — keep local only
+RELEASE.md

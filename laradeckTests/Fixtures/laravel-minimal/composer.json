@@ -1,0 +1,15 @@
+{
+  "name": "acme/demo",
+  "require": {
+    "laravel/framework": "^11.0",
+    "laravel/horizon": "^5.0"
+  },
+  "require-dev": {
+    "laravel/sail": "^1.0"
+  },
+  "scripts": {
+    "post-autoload-dump": "echo ignored",
+    "dev": "php artisan serve",
+    "test": ["vendor/bin/phpunit", "vendor/bin/phpunit --coverage"]
+  }
+}

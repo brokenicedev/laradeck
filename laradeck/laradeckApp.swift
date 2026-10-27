@@ -10,7 +10,10 @@ import SwiftUI
 @main
 struct laradeckApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @State private var appState = AppState()
+    /// Built once per process: SwiftUI may initialize the `App` struct more than once, and a
+    /// second `AppState` would re-run launch work (log tails, auto-start, dump servers).
+    private static let sharedAppState = AppState()
+    @State private var appState = laradeckApp.sharedAppState
 
     init() {
         appDelegate.appState = appState
@@ -20,6 +23,7 @@ struct laradeckApp: App {
         WindowGroup {
             MainWindowView()
                 .environment(appState)
+                .appThemed()
         }
         .defaultSize(width: 980, height: 640)
         .commands {
@@ -47,15 +51,24 @@ struct laradeckApp: App {
             }
         }
 
+        Window("Dumps", id: DumpsWindow.id) {
+            DetachedDumpsWindow()
+                .environment(appState)
+                .appThemed()
+        }
+        .defaultSize(width: 760, height: 620)
+
         MenuBarExtra("Laradeck", image: "MenuBarIcon") {
             MenuBarView()
                 .environment(appState)
+                .appThemed()
         }
         .menuBarExtraStyle(.window)
 
         Settings {
             SettingsView()
                 .environment(appState)
+                .appThemed()
         }
     }
 }

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Laravel artisan shortcuts and .env editor, shown as a header dropdown on the project dashboard.
+/// The project header's ".env" and "Artisan" dropdowns.
 struct LaravelCommandsMenu: View {
     @Environment(AppState.self) private var appState
 
@@ -32,53 +32,10 @@ struct LaravelCommandsMenu: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Menu {
-                Button {
-                    onOpenEnv()
-                } label: {
-                    Label("Open .env", systemImage: "doc.text")
-                }
-                Button {
-                    showingShareEnv = true
-                } label: {
-                    Label("Share .env on LAN…", systemImage: "wifi")
-                }
-                Button {
-                    showingReceiveEnv = true
-                } label: {
-                    Label("Receive .env…", systemImage: "arrow.down.circle")
-                }
-
-                if !artisanTasks.isEmpty {
-                    Divider()
-
-                    ForEach(artisanTasks) { task in
-                        Button {
-                            trigger(task)
-                        } label: {
-                            Label(task.label, systemImage: task.systemImage)
-                        }
-                        .disabled(runningTask != nil)
-                    }
-                }
-            } label: {
-                HStack(spacing: 4) {
-                    if runningTask != nil {
-                        ProgressView().controlSize(.small)
-                    }
-                    Text("Commands")
-                    Image(systemName: "chevron.down")
-                        .font(.caption2.weight(.semibold))
-                }
-            }
-            .menuStyle(.borderlessButton)
-            .buttonStyle(.laradeckOutline)
-            .disabled(runningTask != nil)
-            .fixedSize()
-
-            if let lastFailure {
-                failureBanner(lastFailure)
+        HStack(spacing: 8) {
+            envMenu
+            if !artisanTasks.isEmpty {
+                artisanMenu
             }
         }
         .task(id: project.id) {
@@ -111,6 +68,14 @@ struct LaravelCommandsMenu: View {
                 pendingConfirmation = nil
             }
         }
+        .alert(
+            lastFailure.map { "\($0.taskLabel) failed" } ?? "",
+            isPresented: Binding(get: { lastFailure != nil }, set: { if !$0 { lastFailure = nil } })
+        ) {
+            Button("OK") { lastFailure = nil }
+        } message: {
+            if let lastFailure { Text(lastFailure.message) }
+        }
         .alert("Done", isPresented: Binding(
             get: { successAlertMessage != nil },
             set: { if !$0 { successAlertMessage = nil } }
@@ -123,6 +88,59 @@ struct LaravelCommandsMenu: View {
         }
     }
 
+    private var envMenu: some View {
+        Menu {
+            Button {
+                onOpenEnv()
+            } label: {
+                Label("Edit .env", systemImage: "doc.text")
+            }
+            Divider()
+            Button {
+                showingShareEnv = true
+            } label: {
+                Label("Share on LAN…", systemImage: "wifi")
+            }
+            Button {
+                showingReceiveEnv = true
+            } label: {
+                Label("Receive from LAN…", systemImage: "arrow.down.circle")
+            }
+        } label: {
+            Label(".env", systemImage: "doc.text")
+        } primaryAction: {
+            onOpenEnv()
+        }
+        .menuStyle(.borderlessButton)
+        .buttonStyle(.laradeckOutline)
+        .fixedSize()
+        .help("Edit .env (click) or share it (arrow)")
+    }
+
+    private var artisanMenu: some View {
+        Menu {
+            ForEach(artisanTasks) { task in
+                Button {
+                    trigger(task)
+                } label: {
+                    Label(task.label, systemImage: task.systemImage)
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                if runningTask != nil {
+                    ProgressView().controlSize(.small)
+                }
+                Text("Artisan")
+            }
+        }
+        .menuStyle(.borderlessButton)
+        .buttonStyle(.laradeckOutline)
+        .disabled(runningTask != nil)
+        .fixedSize()
+        .help(runningTask.map { "Running \($0.label)…" } ?? "Artisan commands")
+    }
+
     private func trigger(_ task: ArtisanTask) {
         if task.requiresConfirmation {
             pendingConfirmation = task
@@ -130,16 +148,6 @@ struct LaravelCommandsMenu: View {
         } else {
             Task { await runTask(task) }
         }
-    }
-
-    private func failureBanner(_ failure: ArtisanFailure) -> some View {
-        NoticeBanner(
-            tone: .error,
-            message: "\(failure.taskLabel) failed — \(failure.message)"
-        ) {
-            lastFailure = nil
-        }
-        .frame(maxWidth: 420, alignment: .leading)
     }
 
     private func runTask(_ task: ArtisanTask) async {

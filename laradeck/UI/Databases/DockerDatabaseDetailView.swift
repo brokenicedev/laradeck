@@ -50,7 +50,7 @@ struct DockerDatabaseDetailView: View {
             }
         }
         .background(LaradeckTheme.pageBackground)
-        .navigationTitle("\(database.service) · \(database.projectName)")
+        .laradeckTitle("\(database.service) · \(database.projectName)")
         .detailCloseButton(help: "Close database") { appState.selectedDockerDatabaseId = nil }
         .alert("New Database in \(database.service)", isPresented: $showingCreate) {
             TextField("Name", text: $newName)

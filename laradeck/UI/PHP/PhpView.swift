@@ -59,7 +59,7 @@ struct PhpView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .background(LaradeckTheme.pageBackground)
-        .navigationTitle("PHP")
+        .laradeckTitle("PHP")
         .detailCloseButton(help: "Close PHP") { appState.showingPhp = false }
         .toolbar {
             ToolbarItem {

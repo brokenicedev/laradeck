@@ -9,6 +9,8 @@
 	<string>7rJb4D8aoKN22+5xqajoU0rBKBUnRqL71zYPgcgoyPQ=</string>
 	<key>SUEnableAutomaticChecks</key>
 	<true/>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>Laradeck asks your terminal app (e.g. iTerm) to open a window in the project folder or run a command there.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Laradeck uses the local network so you can share a project .env with a colleague running Laradeck on the same Wi‑Fi or LAN.</string>
 	<key>NSBonjourServices</key>

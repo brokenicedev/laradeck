@@ -11,6 +11,7 @@
 		BB82D2468A22888A2E4610B7 /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = 6CC6911AAC765987F5801FBA /* SwiftTerm */; };
 		DB0E0001A1B2C3D4E5F60001 /* DBEngineKit in Frameworks */ = {isa = PBXBuildFile; productRef = DB0E0002A1B2C3D4E5F60002 /* DBEngineKit */; };
 		DB0E0004A1B2C3D4E5F60004 /* PhpSwitcherCore in Frameworks */ = {isa = PBXBuildFile; productRef = DB0E0005A1B2C3D4E5F60005 /* PhpSwitcherCore */; };
+		DB0E0007A1B2C3D4E5F60007 /* DumpKit in Frameworks */ = {isa = PBXBuildFile; productRef = DB0E0008A1B2C3D4E5F60008 /* DumpKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -63,6 +64,7 @@
 				A7F1E20330416DB20056A054 /* Sparkle in Frameworks */,
 				DB0E0001A1B2C3D4E5F60001 /* DBEngineKit in Frameworks */,
 				DB0E0004A1B2C3D4E5F60004 /* PhpSwitcherCore in Frameworks */,
+				DB0E0007A1B2C3D4E5F60007 /* DumpKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -119,6 +121,7 @@
 				A7F1E20230416DB20056A054 /* Sparkle */,
 				DB0E0002A1B2C3D4E5F60002 /* DBEngineKit */,
 				DB0E0005A1B2C3D4E5F60005 /* PhpSwitcherCore */,
+				DB0E0008A1B2C3D4E5F60008 /* DumpKit */,
 			);
 			productName = laradeck;
 			productReference = 81DD773130416DB20056A054 /* laradeck.app */;
@@ -180,6 +183,7 @@
 				A7F1E20130416DB20056A054 /* XCRemoteSwiftPackageReference "Sparkle" */,
 				DB0E0003A1B2C3D4E5F60003 /* XCLocalSwiftPackageReference "Packages/DBEngineKit" */,
 				DB0E0006A1B2C3D4E5F60006 /* XCLocalSwiftPackageReference "Packages/PhpSwitcherCore" */,
+				DB0E0009A1B2C3D4E5F60009 /* XCLocalSwiftPackageReference "Packages/DumpKit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 81DD773230416DB20056A054 /* Products */;
@@ -387,7 +391,7 @@
 				CODE_SIGN_ENTITLEMENTS = laradeck/laradeck.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = 9V7GQ329MP;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -401,7 +405,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.6;
+				MARKETING_VERSION = 1.0.7;
 				PRODUCT_BUNDLE_IDENTIFIER = brokenice.it.laradeck;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -423,7 +427,7 @@
 				CODE_SIGN_ENTITLEMENTS = laradeck/laradeck.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = 9V7GQ329MP;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -437,7 +441,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.6;
+				MARKETING_VERSION = 1.0.7;
 				PRODUCT_BUNDLE_IDENTIFIER = brokenice.it.laradeck;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -620,7 +624,7 @@
 				CODE_SIGN_ENTITLEMENTS = "laradeck/laradeck-AppStore.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = 9V7GQ329MP;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -634,7 +638,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.6;
+				MARKETING_VERSION = 1.0.7;
 				PRODUCT_BUNDLE_IDENTIFIER = brokenice.it.laradeck;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -657,7 +661,7 @@
 				CODE_SIGN_ENTITLEMENTS = "laradeck/laradeck-AppStore.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = 9V7GQ329MP;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -671,7 +675,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.6;
+				MARKETING_VERSION = 1.0.7;
 				PRODUCT_BUNDLE_IDENTIFIER = brokenice.it.laradeck;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -772,6 +776,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/PhpSwitcherCore;
 		};
+		DB0E0009A1B2C3D4E5F60009 /* XCLocalSwiftPackageReference "Packages/DumpKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/DumpKit;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCRemoteSwiftPackageReference section */
@@ -811,6 +819,10 @@
 		DB0E0005A1B2C3D4E5F60005 /* PhpSwitcherCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = PhpSwitcherCore;
+		};
+		DB0E0008A1B2C3D4E5F60008 /* DumpKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = DumpKit;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

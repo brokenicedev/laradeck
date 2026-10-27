@@ -27,7 +27,7 @@ struct NodeView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .background(LaradeckTheme.pageBackground)
-        .navigationTitle("Node")
+        .laradeckTitle("Node")
         .detailCloseButton(help: "Close Node") { appState.showingNode = false }
         .toolbar {
             ToolbarItem {

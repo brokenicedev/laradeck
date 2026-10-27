@@ -150,7 +150,7 @@ struct LogsView: View {
         .padding(20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(LaradeckTheme.pageBackground)
-        .navigationTitle("Logs — \(project.name)")
+        .laradeckTitle("\(project.name) — Logs")
         .toolbar {
             ToolbarItem(placement: .navigation) {
                 Button {

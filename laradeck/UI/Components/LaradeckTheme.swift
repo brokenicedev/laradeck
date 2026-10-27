@@ -1,18 +1,23 @@
 import SwiftUI
 import AppKit
 
-/// Shared surfaces, all macOS semantic colors so light/dark mode and accessibility
-/// settings (Increase Contrast, Reduce Transparency) are handled by the system.
+/// Shared surfaces, read from the active `AppTheme` (Settings → Appearance).
+/// Reading them inside a view body registers an Observation dependency, so views
+/// re-render when the theme changes.
 enum LaradeckTheme {
-    /// Content area behind sections — white in light mode, like Apple's document-style apps.
-    static var pageBackground: Color { Color(nsColor: .textBackgroundColor) }
+    static var current: AppTheme { ThemeStore.shared.theme }
+
+    /// Content area behind sections.
+    static var pageBackground: Color { current.pageBackground }
 
     /// Grouped section fill.
-    static var cardBackground: Color { Color(nsColor: .controlBackgroundColor) }
+    static var cardBackground: Color { current.cardBackground }
 
-    static var cardBorder: Color { Color(nsColor: .separatorColor) }
+    static var cardBorder: Color { current.border }
 
-    static var buttonBorder: Color { Color(nsColor: .separatorColor) }
+    static var buttonBorder: Color { current.border }
+
+    static var accent: Color { current.accent }
 
     static let cardCornerRadius: CGFloat = 10
     static let buttonCornerRadius: CGFloat = 8

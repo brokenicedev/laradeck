@@ -83,7 +83,7 @@ struct GeneralServiceDetailView: View {
             }
         }
         .background(LaradeckTheme.pageBackground)
-        .navigationTitle(service.displayName)
+        .laradeckTitle(service.displayName)
         .detailCloseButton(help: "Close service") { appState.selectedServiceId = nil }
         .sheet(isPresented: $showingEditor) {
             GeneralServiceEditorSheet(editing: service)

@@ -2,15 +2,19 @@ import SwiftUI
 import AppKit
 
 extension Color {
+    /// Accepts rgb, rgba, rrggbb and rrggbbaa, with or without a leading `#`.
+    /// Unparsable input falls back to opaque black.
     init(hex: String) {
-        var hexString = hex.trimmingCharacters(in: .whitespacesAndNewlines)
-        hexString = hexString.replacingOccurrences(of: "#", with: "")
-        var rgbValue: UInt64 = 0
-        Scanner(string: hexString).scanHexInt64(&rgbValue)
-        let r = Double((rgbValue & 0xFF0000) >> 16) / 255
-        let g = Double((rgbValue & 0x00FF00) >> 8) / 255
-        let b = Double(rgbValue & 0x0000FF) / 255
-        self.init(red: r, green: g, blue: b)
+        var s = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+        if s.hasPrefix("#") { s.removeFirst() }
+        if s.count == 3 || s.count == 4 { s = s.map { "\($0)\($0)" }.joined() }
+        if s.count == 6 { s += "ff" }
+        let v = (s.count == 8 ? UInt64(s, radix: 16) : nil) ?? 0x000000ff
+        self.init(.sRGB,
+                  red: Double((v >> 24) & 0xff) / 255,
+                  green: Double((v >> 16) & 0xff) / 255,
+                  blue: Double((v >> 8) & 0xff) / 255,
+                  opacity: Double(v & 0xff) / 255)
     }
 
     /// Best-effort RGB hex (opacity dropped) — good enough for a stored avatar color.

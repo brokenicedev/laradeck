@@ -15,20 +15,32 @@ struct TerminalOutputView: NSViewRepresentable {
     var isActive = true
     var onSend: ((ArraySlice<UInt8>) -> Void)?
     var onSizeChanged: ((Int, Int) -> Void)?
-    /// Light-on-dark colors for the docked log panel (same in light and dark mode).
-    var usesPanelColors = false
+    /// Captured when the parent body builds this view, so a theme change triggers `updateNSView`.
+    private let themeName = ThemeStore.shared.theme.name
 
     func makeNSView(context: Context) -> SwiftTerm.TerminalView {
         let view = SwiftTerm.TerminalView(frame: .zero)
         view.terminalDelegate = context.coordinator
-        if usesPanelColors {
-            view.nativeBackgroundColor = LogPanelStyle.nsBackground
-            view.nativeForegroundColor = LogPanelStyle.nsForeground
-        }
+        applyTheme(to: view)
         return view
     }
 
+    /// Terminal colors follow the app theme; reassigned only when they actually change.
+    private func applyTheme(to view: SwiftTerm.TerminalView) {
+        let theme = ThemeStore.shared.theme
+        if view.nativeBackgroundColor != theme.terminalBackground {
+            view.nativeBackgroundColor = theme.terminalBackground
+        }
+        if view.nativeForegroundColor != theme.terminalForeground {
+            view.nativeForegroundColor = theme.terminalForeground
+        }
+        if let caret = NSColor(theme.accent).usingColorSpace(.sRGB), view.caretColor != caret {
+            view.caretColor = caret
+        }
+    }
+
     func updateNSView(_ nsView: SwiftTerm.TerminalView, context: Context) {
+        applyTheme(to: nsView)
         context.coordinator.isInteractive = isInteractive
         context.coordinator.isActive = isActive
         context.coordinator.onSend = onSend

@@ -71,7 +71,7 @@ struct DatabasesView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .background(LaradeckTheme.pageBackground)
-        .navigationTitle("Databases")
+        .laradeckTitle("Databases")
         .detailCloseButton(help: "Close databases") { appState.showingDatabases = false }
         .sheet(isPresented: $showingNewDatabase) {
             NewDatabaseSheet()

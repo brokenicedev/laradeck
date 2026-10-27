@@ -114,7 +114,7 @@ struct DatabaseDetailView: View {
             }
         }
         .background(LaradeckTheme.pageBackground)
-        .navigationTitle(service.name)
+        .laradeckTitle(service.name)
         .detailCloseButton(help: "Close database") { appState.selectedDatabaseId = nil }
         .databaseDeleteConfirmation(service, isPresented: $confirmingDelete) {
             appState.selectedDatabaseId = nil

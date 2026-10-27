@@ -196,7 +196,15 @@ build_and_stage_app() {
 
 create_dmg() {
   echo "→ Creating DMG with create-dmg"
-  rm -f "$DMG_PATH"
+  rm -f "$DMG_PATH" "$DIST_DIR"/rw.*.dmg
+
+  # Pack a folder that holds only the app: create-dmg writes its temporary image next to
+  # the output (dist/), so packing dist/ itself would copy that image into the DMG and
+  # run out of space.
+  local stage_dir="$BUILD_DIR/dmg-stage"
+  rm -rf "$stage_dir"
+  mkdir -p "$stage_dir"
+  ditto "$DIST_DIR/$DISPLAY_APP_NAME" "$stage_dir/$DISPLAY_APP_NAME"
 
   create-dmg \
     --volname "LaraDeck" \
@@ -207,7 +215,9 @@ create_dmg() {
     --hide-extension "$DISPLAY_APP_NAME" \
     --app-drop-link 490 210 \
     "$DMG_PATH" \
-    "$DIST_DIR/"
+    "$stage_dir/"
+
+  rm -rf "$stage_dir"
 }
 
 patch_appcast() {

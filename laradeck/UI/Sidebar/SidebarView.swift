@@ -23,6 +23,9 @@ struct SidebarView: View {
         .navigationTitle("Laradeck")
         .toolbar {
             ToolbarItem {
+                SidebarDumpsButton()
+            }
+            ToolbarItem {
                 Menu {
                     Button {
                         showingAddProject = true
@@ -416,6 +419,7 @@ private struct ProjectRow: View {
                     .help(project.path)
             }
             Spacer()
+            SidebarDumpsBadge(project: project)
             if LaravelDetector.isLaravelProject(at: project.path) {
                 LaravelLogoView(size: 30)
                     .help(project.environment == .sail ? "Laravel Sail" : "Laravel")

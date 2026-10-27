@@ -7,9 +7,11 @@ struct ProjectDashboardView: View {
         case dashboard
         case envEditor
         case logs
+        case dumps
     }
 
     @Environment(AppState.self) private var appState
+    @Environment(\.openWindow) private var openWindow
     let project: Project
 
     private struct GroupSection: Identifiable {
@@ -34,6 +36,7 @@ struct ProjectDashboardView: View {
     @State private var logsInitialSource = LogManager.laravelSource
     @State private var laravelInsightsRefreshToken = 0
     @State private var gitBranch: String?
+    @State private var showingProjectInfo = false
     @State private var databaseRequirements: [ProjectDatabaseRequirement] = []
     /// Start All was pressed while the linked PHP doesn't fit composer.json.
     @State private var phpMismatchOnStart: ProjectPhpMismatch?
@@ -78,6 +81,13 @@ struct ProjectDashboardView: View {
     }
 
     var body: some View {
+        screenView
+            .onAppear(perform: consumePendingDumpsOpen)
+            .onChange(of: appState.pendingDumpsOpen) { consumePendingDumpsOpen() }
+    }
+
+    @ViewBuilder
+    private var screenView: some View {
         switch screen {
         case .dashboard:
             dashboardView
@@ -85,7 +95,26 @@ struct ProjectDashboardView: View {
             EnvEditorView(project: project) { screen = .dashboard }
         case .logs:
             LogsView(project: project, initialSource: logsInitialSource) { screen = .dashboard }
+        case .dumps:
+            DumpsView(target: dumpTarget) { screen = .dashboard }
         }
+    }
+
+    private var dumpTarget: DumpTarget { .project(project.id) }
+
+    /// Inline, or brings the detached window forward when the stream lives in its own window.
+    private func openDumps() {
+        if appState.dumpService.isDetached(dumpTarget) {
+            DumpsWindow.open(dumpTarget, service: appState.dumpService, openWindow: openWindow)
+        } else {
+            screen = .dumps
+        }
+    }
+
+    private func consumePendingDumpsOpen() {
+        guard appState.pendingDumpsOpen == project.id else { return }
+        appState.pendingDumpsOpen = nil
+        screen = .dumps
     }
 
     private func openLogs(for sourceName: String) {
@@ -97,11 +126,6 @@ struct ProjectDashboardView: View {
         LaravelDetector.isLaravelProject(at: project.path)
     }
 
-    private var laravelAppEnv: String? {
-        guard isLaravelProject else { return nil }
-        return LaravelDetector.readEnvFile(at: project.path)["APP_ENV"]
-    }
-
     private var dashboardView: some View {
         VStack(spacing: 0) {
             ScrollView {
@@ -111,14 +135,6 @@ struct ProjectDashboardView: View {
                     ProjectPhpBanner(project: project)
                     ProjectNodeBanner(project: project)
 
-                    if isLaravelProject {
-                        LaravelInsightsView(
-                            project: project,
-                            refreshToken: laravelInsightsRefreshToken,
-                            cachedInsights: appState.cachedLaravelInsights(for: project.id)
-                        )
-                    }
-
                     if !databaseRequirements.isEmpty {
                         ProjectDatabasesView(project: project, requirements: databaseRequirements)
                     }
@@ -127,18 +143,21 @@ struct ProjectDashboardView: View {
                         SailServicesView(project: project, onOpenLogs: openLogs)
                     }
 
+                    ProjectDumpsSummary(project: project, onOpen: openDumps)
+
                     processSection
                 }
                 .padding(20)
             }
-
-            ProjectLogPanel(project: project, onOpenFullLogs: openLogs)
         }
         .background(LaradeckTheme.pageBackground)
         .task(id: laravelInsightsRefreshToken) {
             databaseRequirements = ProjectDatabaseLink.requirements(for: project)
+            if isLaravelProject {
+                await LaravelInsightsLoader.refresh(project: project, appState: appState)
+            }
         }
-        .navigationTitle(project.name)
+        .laradeckTitle(project.name)
         .toolbar {
             ToolbarItem(placement: .navigation) {
                 Button {
@@ -148,22 +167,22 @@ struct ProjectDashboardView: View {
                 }
                 .help("Close project")
             }
-            ToolbarItemGroup {
-                Button {
-                    showingRefreshCommands = true
+            ToolbarItem {
+                Menu {
+                    Button {
+                        showingEditProject = true
+                    } label: {
+                        Label("Edit Project…", systemImage: "pencil")
+                    }
+                    Button {
+                        showingRefreshCommands = true
+                    } label: {
+                        Label("Refresh Commands…", systemImage: "arrow.triangle.2.circlepath")
+                    }
                 } label: {
-                    Label("Refresh Commands", systemImage: "arrow.triangle.2.circlepath")
+                    Label("More", systemImage: "ellipsis.circle")
                 }
-                Button {
-                    showingEditProject = true
-                } label: {
-                    Label("Edit Project", systemImage: "pencil")
-                }
-                Button {
-                    openLogs(for: LogManager.laravelSource)
-                } label: {
-                    Label("Logs", systemImage: "terminal")
-                }
+                .help("Edit project, refresh commands")
             }
         }
         .confirmationDialog(
@@ -237,105 +256,168 @@ struct ProjectDashboardView: View {
         }
     }
 
+    /// Three bands: who the project is (name, environment, branch, Start/Stop), where it lives
+    /// (path, URL) and what it runs on (Laravel, PHP, Node, APP_ENV); then one action bar.
     private var header: some View {
-        HStack(alignment: .top, spacing: 16) {
-            ProjectFaviconView(project: project, size: 56)
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 16) {
+                ProjectFaviconView(project: project, size: 56)
 
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 10) {
-                    Text(project.name)
-                        .font(.largeTitle.bold())
-                    environmentBadge
-                }
-
-                PathLinkButton(path: project.path)
-
-                HStack(spacing: 14) {
-                    if let laravelVersion = project.laravelVersion {
-                        HStack(spacing: 5) {
-                            LaravelLogoView(size: 14)
-                            Text("Laravel \(laravelVersion)")
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {
+                        Text(project.name)
+                            .font(.largeTitle.bold())
+                            .lineLimit(1)
+                        environmentBadge
+                        if let gitBranch {
+                            GitBranchBadge(branch: gitBranch)
                         }
                     }
-                    if let phpVersion = project.phpVersion {
-                        Label("PHP \(phpVersion)", systemImage: "chevron.left.forwardslash.chevron.right")
-                    }
-                    ProjectNodeMenu(project: project)
-                    if let appEnv = laravelAppEnv, !appEnv.isEmpty {
-                        Label(appEnv, systemImage: "clock")
-                    }
-                    if let url = project.effectiveURL {
-                        LinkLabel(url: url)
-                    }
+                    locationRow
+                    versionsRow
                 }
-                .font(.callout)
-                .foregroundStyle(.secondary)
 
-                HStack(spacing: 10) {
-                    if let url = project.effectiveURL {
-                        Button {
-                            NSWorkspace.shared.open(url)
-                        } label: {
-                            Label("Open Browser", systemImage: "globe")
-                        }
-                        .buttonStyle(.laradeckOutline)
-                    }
-                    Button {
-                        NSWorkspace.shared.open(project.directoryURL)
-                    } label: {
-                        Label("Open Folder", systemImage: "folder")
-                    }
-                    .buttonStyle(.laradeckOutline)
-                    Button {
-                        openTerminal()
-                    } label: {
-                        Label("Open Terminal", systemImage: "terminal")
-                    }
-                    .buttonStyle(.laradeckOutline)
-                    if isLaravelProject {
-                        LaravelCommandsMenu(project: project, onOpenEnv: { screen = .envEditor }) {
-                            laravelInsightsRefreshToken += 1
-                        }
-                    } else {
-                        Button {
-                            screen = .envEditor
-                        } label: {
-                            Label("Open .env", systemImage: "doc.text")
-                        }
-                        .buttonStyle(.laradeckOutline)
-                    }
+                Spacer(minLength: 12)
 
-                    Spacer(minLength: 12)
+                startStopButton
+            }
 
-                    if let gitBranch {
-                        GitBranchBadge(branch: gitBranch)
-                    }
+            actionBar
+        }
+        .task(id: project.path) {
+            gitBranch = await GitRepositoryService.currentBranch(at: project.path)
+        }
+    }
+
+    /// Path (opens Finder) and app URL (opens the browser).
+    private var locationRow: some View {
+        HStack(spacing: 8) {
+            PathLinkButton(path: (project.path as NSString).abbreviatingWithTildeInPath, lineLimit: 1)
+            if let url = project.effectiveURL {
+                Text("·").foregroundStyle(.tertiary)
+                LinkLabel(url: url, title: displayHost(url))
+                    .font(.subheadline)
+                    .help(url.absoluteString)
+            }
+        }
+    }
+
+    /// Laravel, PHP and Node versions (Node is a menu to pin a version).
+    private var versionsRow: some View {
+        HStack(spacing: 14) {
+            if let laravelVersion = project.laravelVersion {
+                HStack(spacing: 5) {
+                    LaravelLogoView(size: 14)
+                    Text("Laravel \(laravelVersion)")
                 }
-                .task(id: project.path) {
-                    gitBranch = await GitRepositoryService.currentBranch(at: project.path)
+            }
+            if let phpVersion = project.phpVersion {
+                Label("PHP \(phpVersion)", systemImage: "chevron.left.forwardslash.chevron.right")
+            }
+            ProjectNodeMenu(project: project)
+        }
+        .font(.callout)
+        .foregroundStyle(.secondary)
+    }
+
+    /// Open-in apps on the left; project tools (Logs, Dumps, .env, Artisan) on the right.
+    private var actionBar: some View {
+        HStack(spacing: 8) {
+            if let url = project.effectiveURL {
+                Button {
+                    NSWorkspace.shared.open(url)
+                } label: {
+                    Label("Browser", systemImage: "globe")
                 }
+                .help("Open \(url.absoluteString)")
+            }
+            Button {
+                NSWorkspace.shared.open(project.directoryURL)
+            } label: {
+                Label("Finder", systemImage: "folder")
+            }
+            .help("Open the project folder")
+            Button {
+                openTerminal()
+            } label: {
+                Label("Terminal", systemImage: "apple.terminal")
+            }
+            .help("Open \(appState.preferredTerminal.displayName) here")
+
+            Divider().frame(height: 18).padding(.horizontal, 4)
+
+            Button {
+                openLogs(for: LogManager.laravelSource)
+            } label: {
+                Label("Logs", systemImage: "text.alignleft")
+            }
+            Button {
+                openDumps()
+            } label: {
+                DumpsButtonLabel(unread: appState.dumpService.unreadCount(for: dumpTarget))
+            }
+            Button {
+                showingProjectInfo.toggle()
+            } label: {
+                Label {
+                    HStack(spacing: 5) {
+                        Text("Info")
+                        if infoNeedsAttention {
+                            Circle().fill(.orange).frame(width: 7, height: 7)
+                        }
+                    }
+                } icon: {
+                    Image(systemName: "info.circle")
+                }
+            }
+            .help(infoNeedsAttention ? "Pending migrations or storage link to fix" : "Environment and Laravel configuration")
+            .popover(isPresented: $showingProjectInfo, arrowEdge: .bottom) {
+                ProjectInfoPopover(
+                    project: project,
+                    environmentName: environmentName,
+                    gitBranch: gitBranch,
+                    isLaravel: isLaravelProject
+                )
             }
 
             Spacer(minLength: 12)
 
-            startStopButton
+            if isLaravelProject {
+                LaravelCommandsMenu(project: project, onOpenEnv: { screen = .envEditor }) {
+                    laravelInsightsRefreshToken += 1
+                }
+            } else {
+                Button {
+                    screen = .envEditor
+                } label: {
+                    Label(".env", systemImage: "doc.text")
+                }
+            }
+        }
+        .buttonStyle(.laradeckOutline)
+        .padding(.top, 12)
+        .overlay(alignment: .top) {
+            Rectangle().fill(LaradeckTheme.cardBorder).frame(height: 1)
         }
     }
 
+    private var infoNeedsAttention: Bool {
+        isLaravelProject && appState.cachedLaravelInsights(for: project.id)?.needsAttention == true
+    }
+
+    private func displayHost(_ url: URL) -> String {
+        guard let host = url.host() else { return url.absoluteString }
+        return url.port.map { "\(host):\($0)" } ?? host
+    }
+
     private var environmentBadge: some View {
-        Group {
-            if project.environment == .sail {
-                Label("Sail", systemImage: "shippingbox")
-            } else if project.hasDockerCompose {
-                Label("Compose", systemImage: "shippingbox")
-            } else {
-                Label("Native", systemImage: "terminal")
-            }
-        }
-        .font(.caption)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 3)
-        .background(.secondary.opacity(0.15), in: Capsule())
+        HeaderBadge(title: environmentName,
+                    systemImage: project.hasDockerCompose ? "shippingbox" : "terminal")
+    }
+
+    private var environmentName: String {
+        if project.environment == .sail { return "Sail" }
+        return project.hasDockerCompose ? "Compose" : "Native"
     }
 
     private var startAllHelp: String {

@@ -54,6 +54,12 @@ struct SettingsView: View {
             .padding(20)
             .tabItem { Label("General", systemImage: "gearshape") }
 
+            AppearanceSettingsView()
+                .tabItem { Label("Appearance", systemImage: "paintbrush") }
+
+            DumpsSettingsView()
+                .tabItem { Label("Dumps", systemImage: "ladybug") }
+
             CommandsSettingsView()
                 .tabItem { Label("Commands", systemImage: "terminal") }
         }

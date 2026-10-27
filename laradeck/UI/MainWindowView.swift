@@ -16,8 +16,12 @@ struct MainWindowView: View {
 
         NavigationSplitView {
             SidebarView(showingAddProject: $showingAddProject)
+                .scrollContentBackground(.hidden)
+                .background(LaradeckTheme.current.header)
+                .themedToolbar()
         } detail: {
             detailColumn
+                .themedToolbar()
         }
         .toolbar {
             // Docker / PHP / Laravel installer status, centered like Xcode's activity view.
@@ -25,6 +29,7 @@ struct MainWindowView: View {
                 EnvironmentStatusView()
             }
         }
+        .onAppear { appState.activateDumps() }
         .sheet(isPresented: $showingAddProject) {
             AddProjectView(initialPath: addProjectInitialPath)
         }
@@ -127,7 +132,7 @@ struct MainWindowView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(LaradeckTheme.pageBackground)
+        .background { ThemeBackground() }
         .safeAreaInset(edge: .top, spacing: 0) {
             if appState.pendingEnvReceive?.phase != .mergeEditor, let update = appState.versionCheck.bannerUpdate {
                 UpdateAvailableBanner(

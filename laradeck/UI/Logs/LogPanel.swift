@@ -1,15 +1,16 @@
 import AppKit
 import SwiftUI
 
-/// Colors of the docked log panel: dark in both light and dark mode, like Xcode's console.
+/// Colors of the docked log panel, taken from the active app theme.
 enum LogPanelStyle {
-    static let nsBackground = NSColor(srgbRed: 0.11, green: 0.11, blue: 0.12, alpha: 1)
-    static let nsForeground = NSColor(white: 0.86, alpha: 1)
-    static let background = Color(nsColor: nsBackground)
-    static let headerBackground = Color(white: 0.15)
-    static let foreground = Color(nsColor: nsForeground)
-    static let secondary = Color(white: 0.55)
-    static let separator = Color(white: 1, opacity: 0.08)
+    private static var theme: AppTheme { ThemeStore.shared.theme }
+    static var nsBackground: NSColor { theme.terminalBackground }
+    static var nsForeground: NSColor { theme.terminalForeground }
+    static var background: Color { Color(nsColor: nsBackground) }
+    static var headerBackground: Color { theme.header }
+    static var foreground: Color { theme.text }
+    static var secondary: Color { theme.secondaryText }
+    static var separator: Color { theme.border }
 }
 
 /// Dark "Logs" panel docked at the bottom of a detail page: title, optional accessory
@@ -45,7 +46,6 @@ struct LogPanel<Accessory: View, Content: View>: View {
             }
         }
         .background(LogPanelStyle.background)
-        .environment(\.colorScheme, .dark)
     }
 
     private var header: some View {

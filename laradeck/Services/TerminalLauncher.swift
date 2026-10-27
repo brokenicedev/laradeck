@@ -31,12 +31,44 @@ nonisolated enum TerminalLauncher {
 
     static func open(_ app: TerminalApp, at path: String) {
         guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: app.rawValue) else { return }
+        // iTerm only comes to the front when handed a folder; ask it for a new window there instead.
+        if app == .iterm, openITermWindow(at: path) { return }
         let directoryURL = URL(fileURLWithPath: path, isDirectory: true)
         NSWorkspace.shared.open(
             [directoryURL],
             withApplicationAt: appURL,
             configuration: NSWorkspace.OpenConfiguration()
         )
+    }
+
+    /// New iTerm window with a shell in `path`. When iTerm wasn't running, reuses the window it
+    /// opens at launch instead of adding a second one. Returns false if the script failed
+    /// (e.g. Automation permission denied).
+    private static func openITermWindow(at path: String) -> Bool {
+        let command = appleScriptString("cd \(shellEscape(path)) && clear")
+        return runAppleScript("""
+        set wasRunning to application id "\(TerminalApp.iterm.rawValue)" is running
+        tell application id "\(TerminalApp.iterm.rawValue)"
+            activate
+            if not wasRunning then
+                repeat 20 times
+                    if (count of windows) > 0 then exit repeat
+                    delay 0.1
+                end repeat
+            end if
+            if wasRunning or (count of windows) = 0 then
+                set targetWindow to (create window with default profile)
+            else
+                set targetWindow to current window
+            end if
+            tell current session of targetWindow to write text \(command)
+        end tell
+        """)
+    }
+
+    /// Quoted AppleScript string literal.
+    private static func appleScriptString(_ value: String) -> String {
+        "\"" + value.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") + "\""
     }
 
     /// Opens the preferred terminal and runs an interactive shell inside a Sail compose service.
@@ -103,8 +135,15 @@ nonisolated enum TerminalLauncher {
         "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 
-    private static func runAppleScript(_ source: String) {
+    @discardableResult
+    private static func runAppleScript(_ source: String) -> Bool {
         var error: NSDictionary?
-        NSAppleScript(source: source)?.executeAndReturnError(&error)
+        guard let script = NSAppleScript(source: source) else { return false }
+        script.executeAndReturnError(&error)
+        if let error {
+            NSLog("Laradeck AppleScript failed: %@", error)
+            return false
+        }
+        return true
     }
 }

@@ -156,6 +156,11 @@ final class NotificationManager {
         notify(title: projectName, body: "\(taskName): \(body)")
     }
 
+    /// Pauses and `notify()` calls coming from the Dumps viewer.
+    func notifyDump(projectName: String, message: String) {
+        notify(title: projectName, body: String(message.prefix(240)))
+    }
+
     private func notify(title: String, body: String) {
         guard notificationsEnabled else { return }
 

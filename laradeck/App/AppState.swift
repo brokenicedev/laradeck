@@ -127,6 +127,7 @@ final class AppState {
     let generalServices: GeneralServicesManager
     let phpManager: PhpManager
     let nodeManager: NodeManager
+    let dumpService: DumpService
 
     /// In-memory Laravel insights per project — avoids empty→full flash when leaving/returning to the dashboard.
     private(set) var laravelInsightsCache: [UUID: LaravelInsights] = [:]
@@ -136,6 +137,9 @@ final class AppState {
 
     /// Shown when Compose Up / Start All would hit host ports already in use.
     var pendingPortConflict: PendingPortConflict?
+
+    /// Set to open a project's Dumps from outside its dashboard (reattach, sidebar badge).
+    var pendingDumpsOpen: UUID?
 
     /// Shown when Start All finds the project's Laradeck databases stopped.
     var pendingDatabaseStart: PendingDatabaseStart?
@@ -158,6 +162,7 @@ final class AppState {
         self.generalServices = GeneralServicesManager(docker: dockerManager)
         self.phpManager = PhpManager()
         self.nodeManager = NodeManager()
+        self.dumpService = DumpService.shared
 
         RuntimeResolver.shared.loadPersistedOverrides()
         #if SPARKLE
@@ -217,9 +222,23 @@ final class AppState {
 
         startEnvironmentMonitoring()
 
+
         Task { [versionCheck] in
             await versionCheck.checkForUpdatesIfNeeded()
         }
+    }
+
+    /// Points the shared dump service at this state and starts its servers. Called from the
+    /// windows' `onAppear`, so it binds to the `AppState` SwiftUI actually keeps.
+    func activateDumps() {
+        dumpService.projectsProvider = { [weak self] in self?.projects ?? [] }
+        dumpService.composeRunning = { [weak self] id in
+            self?.dockerManager.statusByProject[id]?.contains(where: \.isRunning) == true
+        }
+        dumpService.notify = { [weak self] title, body in
+            self?.notificationManager.notifyDump(projectName: title, message: body)
+        }
+        dumpService.start()
     }
 
     var hasDockerComposeProjects: Bool {

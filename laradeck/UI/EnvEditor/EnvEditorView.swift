@@ -87,7 +87,7 @@ struct EnvEditorView: View {
         .padding(20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(LaradeckTheme.pageBackground)
-        .navigationTitle(".env — \(project.name)")
+        .laradeckTitle("\(project.name) — .env")
         .toolbar {
             ToolbarItem(placement: .navigation) {
                 Button {

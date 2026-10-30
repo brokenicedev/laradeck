@@ -19,18 +19,21 @@ enum LaradeckTheme {
 
     static var accent: Color { current.accent }
 
-    static let cardCornerRadius: CGFloat = 10
+    /// Glass (Snowflake) themes use rounder cards.
+    static var cardCornerRadius: CGFloat { current.glass ? 14 : 10 }
     static let buttonCornerRadius: CGFloat = 8
 }
 
 extension View {
-    /// White (or dark-elevated) card on the gray page background.
+    /// White (or dark-elevated) card on the gray page background; frosted glass with a soft
+    /// shadow on Snowflake themes.
     func laradeckCard(cornerRadius: CGFloat = LaradeckTheme.cardCornerRadius) -> some View {
         background(LaradeckTheme.cardBackground, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .strokeBorder(LaradeckTheme.cardBorder, lineWidth: 1)
             }
+            .shadow(color: LaradeckTheme.current.cardShadow, radius: 12, y: 6)
     }
 }
 

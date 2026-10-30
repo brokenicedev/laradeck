@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Settings → Appearance: pick the app-wide theme, or follow the OS (Midnight / Daylight).
+/// Settings → Appearance: pick the app-wide theme, or follow the OS (Snowflake / Snowflake Light).
 struct AppearanceSettingsView: View {
     var body: some View {
         @Bindable var store = ThemeStore.shared
@@ -8,7 +8,7 @@ struct AppearanceSettingsView: View {
         Form {
             Section {
                 Toggle("Sync with OS", isOn: $store.syncWithSystem)
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 5), spacing: 10) {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 4), spacing: 10) {
                     ForEach(AppTheme.all) { theme in
                         ThemeCard(theme: theme, selected: store.theme.name == theme.name)
                             .onTapGesture { store.select(theme) }
@@ -21,7 +21,7 @@ struct AppearanceSettingsView: View {
             } header: {
                 Text("Theme")
             } footer: {
-                Text("“Sync with OS” uses Daylight in light mode and Midnight in dark mode. Picking a theme turns it off.")
+                Text("“Sync with OS” uses Snowflake Light in light mode and Snowflake in dark mode. Picking a theme turns it off.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -38,7 +38,11 @@ private struct ThemeCard: View {
     var body: some View {
         VStack(spacing: 4) {
             ZStack(alignment: .topLeading) {
-                LinearGradient(colors: [theme.windowStart, theme.windowEnd], startPoint: .top, endPoint: .bottom)
+                if theme.glass {
+                    LinearGradient(colors: theme.blobs, startPoint: .topLeading, endPoint: .bottomTrailing)
+                } else {
+                    LinearGradient(colors: [theme.windowStart, theme.windowEnd], startPoint: .top, endPoint: .bottom)
+                }
                 VStack(alignment: .leading, spacing: 3) {
                     theme.header.frame(height: 8)
                     ForEach(0..<3) { i in

@@ -17,7 +17,8 @@ struct MainWindowView: View {
         NavigationSplitView {
             SidebarView(showingAddProject: $showingAddProject)
                 .scrollContentBackground(.hidden)
-                .background(LaradeckTheme.current.header)
+                // Glass themes keep the native translucent sidebar, like Snowflake Desktop.
+                .background(LaradeckTheme.current.glass ? Color.clear : LaradeckTheme.current.header)
                 .themedToolbar()
         } detail: {
             detailColumn
@@ -27,6 +28,10 @@ struct MainWindowView: View {
             // Docker / PHP / Laravel installer status, centered like Xcode's activity view.
             ToolbarItem(placement: .status) {
                 EnvironmentStatusView()
+            }
+            // Keep the display awake for a while (like caffeinate / Amphetamine).
+            ToolbarItem(placement: .status) {
+                KeepAwakeStatusView()
             }
         }
         .onAppear { appState.activateDumps() }
@@ -132,7 +137,7 @@ struct MainWindowView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background { ThemeBackground() }
+        .background { ThemeBackground(tint: dashboardProject.map { Color(hex: $0.effectiveColorHex) }) }
         .safeAreaInset(edge: .top, spacing: 0) {
             if appState.pendingEnvReceive?.phase != .mergeEditor, let update = appState.versionCheck.bannerUpdate {
                 UpdateAvailableBanner(
@@ -158,6 +163,17 @@ struct MainWindowView: View {
         .animation(.easeInOut(duration: 0.15), value: isDropTargeted)
         .animation(.easeInOut(duration: 0.2), value: appState.versionCheck.bannerUpdate?.build)
         .animation(.easeInOut(duration: 0.2), value: appState.pendingEnvReceive?.id)
+    }
+
+    /// The project whose dashboard fills the detail column (same order as `detailColumn`), if any.
+    /// Its color tints the background.
+    private var dashboardProject: Project? {
+        if appState.pendingEnvReceive?.phase == .mergeEditor { return nil }
+        if appState.showingPhp || appState.showingNode || appState.showingDatabases { return nil }
+        if let id = appState.selectedDatabaseId, appState.databaseManager.row(id: id) != nil { return nil }
+        if let id = appState.selectedServiceId, appState.generalServices.service(id: id) != nil { return nil }
+        if let id = appState.selectedDockerDatabaseId, appState.dockerDatabases.contains(where: { $0.id == id }) { return nil }
+        return appState.selectedProject
     }
 
     /// Save / Overwrite / Merge chooser — only while still in `.chooseAction`.

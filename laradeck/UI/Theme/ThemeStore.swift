@@ -14,9 +14,9 @@ final class ThemeStore {
     var animatedBackground: Bool { didSet { defaults.set(animatedBackground, forKey: Keys.animated) } }
     private(set) var systemIsDark: Bool
 
-    /// Midnight / Daylight follow the OS when syncing; otherwise the picked theme.
+    /// Snowflake / Snowflake Light follow the OS when syncing; otherwise the picked theme.
     var theme: AppTheme {
-        if syncWithSystem { return systemIsDark ? .midnight : .daylight }
+        if syncWithSystem { return systemIsDark ? .snowflake : .snowflakeLight }
         return AppTheme.named(themeName)
     }
 
@@ -28,7 +28,7 @@ final class ThemeStore {
     }
 
     private init() {
-        themeName = defaults.string(forKey: Keys.theme) ?? AppTheme.midnight.name
+        themeName = defaults.string(forKey: Keys.theme) ?? AppTheme.snowflake.name
         syncWithSystem = defaults.object(forKey: Keys.sync) as? Bool ?? true
         animatedBackground = defaults.object(forKey: Keys.animated) as? Bool ?? true
         systemIsDark = Self.readSystemIsDark()
@@ -53,7 +53,8 @@ final class ThemeStore {
 
 extension View {
     /// Applies the active theme to a scene's root: color scheme, title bar color, monospaced font
-    /// for mono themes. Controls keep the system accent (gray bordered buttons, blue prominent ones).
+    /// for mono themes. Flat themes keep the system accent on controls; glass (Snowflake) themes
+    /// tint controls with their accent, like Snowflake Desktop.
     func appThemed() -> some View {
         modifier(AppThemeModifier())
     }
@@ -61,11 +62,18 @@ extension View {
 
 extension View {
     /// Title bar / toolbar in the theme's header color instead of the system gray.
+    /// Glass themes hide the toolbar background so the gradient shows through.
     /// Applied per column too, since split views resolve the toolbar background per column.
+    @ViewBuilder
     func themedToolbar() -> some View {
         let theme = ThemeStore.shared.theme
-        return toolbarBackground(theme.header, for: .windowToolbar)
-            .toolbarBackground(.visible, for: .windowToolbar)
+        if theme.glass {
+            // Like Snowflake Desktop: no toolbar material at all, so it never appears on hover/scroll.
+            toolbarBackground(.hidden, for: .windowToolbar)
+        } else {
+            toolbarBackground(theme.header, for: .windowToolbar)
+                .toolbarBackground(.visible, for: .windowToolbar)
+        }
     }
 }
 
@@ -75,6 +83,7 @@ private struct AppThemeModifier: ViewModifier {
         content
             .preferredColorScheme(theme.colorScheme)
             .fontDesign(theme.monospace ? .monospaced : .default)
+            .tint(theme.glass ? theme.accent : nil)
             .themedToolbar()
     }
 }

@@ -1,11 +1,15 @@
 import AppKit
 import SwiftUI
 
-/// App-wide color theme. Five built-in themes, two dark and three light, plus a terminal-green one.
+/// App-wide color theme. Snowflake (dark + light, the default) plus the classic flat themes.
 struct AppTheme: Equatable, Identifiable {
     var name: String
     var isDark: Bool
     var monospace = false
+    /// Snowflake style: translucent window with drifting gradient blobs and frosted-glass cards.
+    var glass = false
+    /// Blob colors for glass themes (three stops, like Snowflake Desktop's presets).
+    var blobs: [Color] = []
 
     var windowStart: Color
     var windowEnd: Color
@@ -41,15 +45,26 @@ struct AppTheme: Equatable, Identifiable {
     var colorScheme: ColorScheme { isDark ? .dark : .light }
 
     /// Cards and grouped sections: a faint lift over the window on dark themes, white on light ones.
-    var cardBackground: Color { isDark ? Color.white.opacity(0.045) : Color.white }
+    /// Glass themes use translucent frosted cards over the gradient.
+    var cardBackground: Color {
+        if glass { return isDark ? Color.white.opacity(0.07) : Color.white.opacity(0.6) }
+        return isDark ? Color.white.opacity(0.045) : Color.white
+    }
 
     /// Light themes have a white window; give the page a soft gray so white cards stand out.
-    var pageBackground: Color { isDark ? windowStart : Color(white: 0.965) }
+    /// Glass themes leave it clear so the gradient background shows through.
+    var pageBackground: Color {
+        if glass { return .clear }
+        return isDark ? windowStart : Color(white: 0.965)
+    }
 
-    static let all: [AppTheme] = [.midnight, .daylight, .hackerman, .artisan, .vishal]
+    /// Soft drop shadow under glass cards; flat themes have none.
+    var cardShadow: Color { glass ? Color.black.opacity(isDark ? 0.35 : 0.10) : .clear }
+
+    static let all: [AppTheme] = [.snowflake, .snowflakeLight, .midnight, .daylight, .hackerman, .artisan, .vishal]
 
     static func named(_ name: String) -> AppTheme {
-        all.first { $0.name.lowercased() == name.lowercased() } ?? .midnight
+        all.first { $0.name.lowercased() == name.lowercased() } ?? .snowflake
     }
 
     // Dump palettes are shared by all dark themes and by all light themes.
@@ -67,7 +82,7 @@ struct AppTheme: Equatable, Identifiable {
         t.dumpEllipsis = Color(hex: "#ea580c")
     }
 
-    private static func make(_ name: String, dark: Bool, mono: Bool = false,
+    private static func make(_ name: String, dark: Bool, mono: Bool = false, blobs: [String]? = nil,
                              terminal: (String, String), _ c: [String]) -> AppTheme {
         let col = c.map { Color(hex: $0) }
         var t = AppTheme(name: name, isDark: dark, monospace: mono,
@@ -80,10 +95,18 @@ struct AppTheme: Equatable, Identifiable {
                          terminalBackground: NSColor(Color(hex: terminal.0)),
                          terminalForeground: NSColor(Color(hex: terminal.1)))
         if dark { darkDump(&t) } else { lightDump(&t) }
+        if let blobs {
+            t.glass = true
+            t.blobs = blobs.map { Color(hex: $0) }
+        }
         return t
     }
 
     //                                                                windowStart windowEnd  header     text       secondary  accent     hover        border       code         filename   time       separator  snippetBg  snippetActive
+    static let snowflake = make("Snowflake", dark: true, blobs: ["#0b1e3a", "#123a6b", "#0e6e8c"], terminal: ("#0b1e3a", "#e6eef8"),
+                                ["#0b1e3a", "#123a6b", "#0b1e3a", "#ffffff", "#ffffff9e", "#3ba7ff", "#ffffff12", "#ffffff1a", "#ffffff0d", "#9fb3cc", "#9fb3cc", "#3ba7ff", "#123a6b", "#1d5a9e"])
+    static let snowflakeLight = make("Snowflake Light", dark: false, blobs: ["#ddefff", "#bfe0ff", "#c9f4f2"], terminal: ("#ffffff", "#111827"),
+                                ["#ddefff", "#bfe0ff", "#ddefff", "#111827", "#1118279e", "#3ba7ff", "#ffffff66", "#0000000f", "#0000000a", "#4b6584", "#4b6584", "#3ba7ff", "#eef6ff", "#cfe6ff"])
     static let midnight  = make("Midnight", dark: true, terminal: ("#100322", "#e6e0f5"),
                                 ["#14052e", "#1c0840", "#110425", "#ffffff", "#a897d3", "#ff6a00", "#ffffff0d", "#493b6d", "#ffffff0d", "#8e81b1", "#8e81b1", "#ff6a00", "#34245c", "#4c00c7"])
     static let daylight  = make("Daylight", dark: false, terminal: ("#ffffff", "#1a1a1a"),
@@ -96,8 +119,9 @@ struct AppTheme: Equatable, Identifiable {
                                 ["#ffffff", "#ffffff", "#f2f2f2", "#05038c", "#00000066", "#ff8f1f", "#f2f2f266", "#a1a1aa4d", "#f2f2f2", "#847a99", "#847a99", "#ff6a00", "#f2f2f2", "#e0d1f5"])
 }
 
-/// Window background: theme gradient, a slow drifting glow when the animated background is on,
-/// and an optional tint.
+/// Window background. Glass themes (Snowflake) draw drifting gradient blobs over a translucent
+/// base, like Snowflake Desktop; flat themes draw their gradient with a slow drifting glow.
+/// `tint` pushes the background towards a color.
 struct ThemeBackground: View {
     var tint: Color? = nil
     @State private var phase = false
@@ -105,13 +129,24 @@ struct ThemeBackground: View {
     var body: some View {
         let store = ThemeStore.shared
         let theme = store.theme
+        Group {
+            if theme.glass {
+                GlassGradientBackground(theme: theme, tint: tint, animated: store.animatedBackground)
+            } else {
+                flat(theme, animated: store.animatedBackground)
+            }
+        }
+        .ignoresSafeArea()
+    }
+
+    @ViewBuilder private func flat(_ theme: AppTheme, animated: Bool) -> some View {
         ZStack {
             if theme.isDark {
                 LinearGradient(colors: [theme.windowStart, theme.windowEnd], startPoint: .top, endPoint: .bottom)
             } else {
                 theme.pageBackground
             }
-            if store.animatedBackground && theme.isDark && !theme.monospace {
+            if animated && theme.isDark && !theme.monospace {
                 RadialGradient(colors: [theme.accent.opacity(0.10), .clear], center: phase ? .topTrailing : .bottomLeading,
                                startRadius: 10, endRadius: 520)
                     .onAppear {
@@ -120,6 +155,79 @@ struct ThemeBackground: View {
             }
             if let tint { tint.opacity(0.14) }
         }
-        .ignoresSafeArea()
+    }
+}
+
+/// Snowflake Desktop's background: four soft blobs drifting slowly over the native window material.
+private struct GlassGradientBackground: View {
+    let theme: AppTheme
+    let tint: Color?
+    let animated: Bool
+
+    var body: some View {
+        let ws = NSWorkspace.shared
+        let reduceTransparency = ws.accessibilityDisplayShouldReduceTransparency
+        let still = !animated || ws.accessibilityDisplayShouldReduceMotion
+        let colors = theme.blobs
+        ZStack {
+            if reduceTransparency {
+                theme.isDark ? Color(hex: "#111318") : Color(hex: "#f5f6f8")
+            } else {
+                VisualEffectBackground()
+            }
+            TimelineView(.animation(minimumInterval: 1 / 30, paused: still)) { context in
+                let t = still ? 0 : context.date.timeIntervalSinceReferenceDate
+                Canvas { ctx, size in
+                    // A tint (the project's color) takes over two of the four blobs.
+                    let blobs: [(Color, Double, Double, Double)] = [
+                        (colors[0], 0.20, 0.25, 0.0),
+                        (tint ?? colors[1], 0.80, 0.30, 2.1),
+                        (colors[2], 0.50, 0.85, 4.2),
+                        (tint ?? colors[1], 0.85, 0.85, 1.3),
+                    ]
+                    let radius = max(size.width, size.height) * 0.65
+                    for (color, x, y, phase) in blobs {
+                        let cx = size.width * (x + 0.06 * sin(t / 9 + phase))
+                        let cy = size.height * (y + 0.06 * cos(t / 11 + phase))
+                        let rect = CGRect(x: cx - radius / 2, y: cy - radius / 2, width: radius, height: radius)
+                        ctx.fill(
+                            Path(ellipseIn: rect),
+                            with: .radialGradient(
+                                Gradient(colors: [color.opacity(theme.isDark ? 0.5 : 0.6), color.opacity(0)]),
+                                center: CGPoint(x: cx, y: cy),
+                                startRadius: 0,
+                                endRadius: radius / 2
+                            )
+                        )
+                    }
+                }
+            }
+            .blur(radius: 40)
+            .opacity(reduceTransparency ? 0.4 : 0.7)
+            // Soft wash of the tint from the top, like Snowflake Desktop's dashboard.
+            if let tint {
+                LinearGradient(colors: [tint.opacity(0.10), tint.opacity(0.03), .clear], startPoint: .top, endPoint: .bottom)
+                    .allowsHitTesting(false)
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeInOut(duration: 0.8), value: tint)
+    }
+}
+
+/// Native translucent material behind the window content.
+struct VisualEffectBackground: NSViewRepresentable {
+    var material: NSVisualEffectView.Material = .underWindowBackground
+    var blending: NSVisualEffectView.BlendingMode = .behindWindow
+
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.state = .active
+        return view
+    }
+
+    func updateNSView(_ view: NSVisualEffectView, context: Context) {
+        view.material = material
+        view.blendingMode = blending
     }
 }

@@ -234,16 +234,6 @@ struct MockServerSettingsView: View {
                     Text("Paste it in the project's .env and point your HTTP client at it. From Sail containers use host.docker.internal instead of 127.0.0.1.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                }
-                .padding(14)
-                .laradeckCard()
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Notes").font(.headline)
-                    TextEditor(text: $server.notes)
-                        .font(.callout)
-                        .scrollContentBackground(.hidden)
-                        .frame(minHeight: 80)
                     if let source = server.source {
                         Text("Imported from \(source)")
                             .font(.caption)

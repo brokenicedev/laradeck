@@ -797,6 +797,22 @@ final class ProcessManager {
             return
         }
 
+        // A missing npm script (or folder) would only fail and restart in a loop: say so once instead.
+        if let reason = PackageScriptPreflight.problem(
+            executable: definition.executable,
+            arguments: definition.arguments,
+            directory: definition.workingDirectory ?? project.path
+        ) {
+            running.status = .failed
+            running.appendTerminalText(reason)
+            notificationManager.notifyProcessStartFailure(
+                projectName: project.name,
+                processName: definition.name,
+                reason: reason
+            )
+            return
+        }
+
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executablePath)
         var launchArguments = definition.arguments

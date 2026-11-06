@@ -383,6 +383,8 @@ struct DumpListView: View {
     @Environment(AppState.self) private var appState
     @Environment(DumpSession.self) private var session
     let items: [DumpSession.DisplayItem]
+    /// A scroll to the newest row is already queued; a burst of dumps scrolls once, not per row.
+    @State private var scrollQueued = false
 
     var body: some View {
         let service = appState.dumpService
@@ -397,8 +399,15 @@ struct DumpListView: View {
                 .padding(service.compactUI ? 4 : 12)
             }
             .onChange(of: session.store.lastAppendedID) {
-                guard service.scrollOnLog, let last = items.last else { return }
-                withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(last.id, anchor: .bottom) }
+                // No animation: animated scrolls through a lazy list of tall rows pile up during bursts.
+                guard service.scrollOnLog, !scrollQueued else { return }
+                scrollQueued = true
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(150))
+                    scrollQueued = false
+                    let latest = session.visibleItems(groupDuplicates: service.groupDuplicates).last
+                    if let latest { proxy.scrollTo(latest.id, anchor: .bottom) }
+                }
             }
             .onAppear {
                 if let last = items.last { proxy.scrollTo(last.id, anchor: .bottom) }

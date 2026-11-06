@@ -115,13 +115,32 @@ struct VarDumpView: View {
 }
 
 /// Generic HTML through AppKit's importer (scripts removed). Results are cached per string.
+/// The importer is slow and must run on the main thread, so the row first shows the plain text and
+/// converts after it's on screen — one row at a time instead of blocking the whole list render.
 struct DumpHTMLView: View {
     let html: String
 
     @MainActor private static var cache: [String: AttributedString] = [:]
+    @MainActor private static var plainCache: [String: AttributedString] = [:]
+
+    @State private var converted: AttributedString?
 
     var body: some View {
-        Text(Self.attributed(html))
+        Text(converted ?? Self.cache[html] ?? Self.plain(html))
+            .task(id: html) {
+                if let hit = Self.cache[html] { converted = hit; return }
+                await Task.yield()
+                guard !Task.isCancelled else { return }
+                converted = Self.attributed(html)
+            }
+    }
+
+    @MainActor private static func plain(_ html: String) -> AttributedString {
+        if let hit = plainCache[html] { return hit }
+        let result = AttributedString(HTMLText.stripTags(html))
+        if plainCache.count > 500 { plainCache.removeAll() }
+        plainCache[html] = result
+        return result
     }
 
     @MainActor static func attributed(_ html: String) -> AttributedString {

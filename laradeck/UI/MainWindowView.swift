@@ -38,6 +38,12 @@ struct MainWindowView: View {
         .sheet(isPresented: $showingAddProject) {
             AddProjectView(initialPath: addProjectInitialPath)
         }
+        .sheet(item: Binding(
+            get: { appState.dockerManager.pruneSheet },
+            set: { appState.dockerManager.pruneSheet = $0 }
+        )) { kind in
+            DockerPruneSheet(kind: kind)
+        }
         .onChange(of: appState.pendingAddProjectRequest) { _, requested in
             guard requested else { return }
             addProjectInitialPath = nil

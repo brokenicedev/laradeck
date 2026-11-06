@@ -56,7 +56,7 @@ struct DumpPayloadView: View {
         case .applicationLog:
             VStack(alignment: .leading, spacing: 4) {
                 Text(c["value"]?.displayString ?? "")
-                if let context = c["context"], !context.isNull, context.serialized() != "[]" {
+                if let context = c["context"], !context.isEmptyJSON {
                     DumpValueView(value: context, expand: entry.expand)
                 }
             }
@@ -72,7 +72,7 @@ struct DumpPayloadView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(c["name"]?.displayString ?? "Event").bold()
                 if let event = c["event"], !event.isNull { DumpValueView(value: event, expand: entry.expand) }
-                if let payload = c["payload"], !payload.isNull, payload.serialized() != "[]" { DumpValueView(value: payload, expand: entry.expand) }
+                if let payload = c["payload"], !payload.isEmptyJSON { DumpValueView(value: payload, expand: entry.expand) }
             }
         case .jobEvent:
             VStack(alignment: .leading, spacing: 6) {

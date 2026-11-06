@@ -53,7 +53,7 @@ final class DumpSession: Identifiable {
         let query = searchText.trimmingCharacters(in: .whitespaces).lowercased()
         let filtered = store.currentScreen.entries.filter { entry in
             if !colorFilter.isEmpty && !colorFilter.contains(entry.color ?? "") { return false }
-            if !query.isEmpty && !entry.searchText.contains(query) { return false }
+            if !query.isEmpty && !entry.matches(query) { return false }
             return true
         }
         guard groupDuplicates else { return filtered.map { DisplayItem(entry: $0, count: 1) } }
@@ -432,9 +432,12 @@ final class DumpService {
             for (target, session) in self.sessions {
                 pairs.append((target.key, session.store.snapshot()))
             }
-            let text = JSONValue.object(JSONObject([("sessions", .object(JSONObject(pairs)))])).serialized()
+            let snapshot = JSONValue.object(JSONObject([("sessions", .object(JSONObject(pairs)))]))
             let url = self.sessionURL
-            await Task.detached { try? Data(text.utf8).write(to: url, options: .atomic) }.value
+            // Turning several MB of dumps into text is slow: do it off the main thread.
+            await Task.detached(priority: .utility) {
+                try? Data(snapshot.serialized().utf8).write(to: url, options: .atomic)
+            }.value
         }
     }
 }

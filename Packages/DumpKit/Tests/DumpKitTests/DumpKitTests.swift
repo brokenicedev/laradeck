@@ -151,6 +151,27 @@ final class DumpTests: XCTestCase {
         let e = DumpEntry(groupUuid: "x", type: "log", content: ["values": .array([.string(html)])])
         XCTAssertTrue(e.searchText.contains("f&o"))
         XCTAssertFalse(e.searchText.contains("sf-dump"))
+        XCTAssertTrue(e.matches("f&o"))
+        XCTAssertTrue(e.matches("log"))
+        XCTAssertFalse(e.matches("sf-dump"))
+    }
+
+    func testCachedValuesFollowContentChanges() {
+        var a = DumpEntry(groupUuid: "x", type: "log", content: ["values": ["one"]])
+        let b = DumpEntry(groupUuid: "y", type: "log", content: ["values": ["one"]])
+        XCTAssertEqual(a.groupingKey, b.groupingKey)
+        XCTAssertTrue(a.matches("one"))
+
+        // A copy keeps the cache; changing its content must not reuse the old values.
+        var c = a
+        c.content = ["values": ["two"]]
+        XCTAssertNotEqual(c.groupingKey, b.groupingKey)
+        XCTAssertTrue(c.matches("two"))
+        XCTAssertFalse(c.matches("one"))
+        XCTAssertTrue(a.matches("one"))
+
+        a.color = "red"
+        XCTAssertNotEqual(a.groupingKey, b.groupingKey)
     }
 
     func testSQLInterpolation() {

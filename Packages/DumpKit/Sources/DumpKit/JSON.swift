@@ -2,7 +2,7 @@ import Foundation
 
 /// A JSON object that keeps keys in the order they arrived.
 /// Clients send tables and model attributes as objects, and their order matters on screen.
-public struct JSONObject: Hashable {
+public struct JSONObject: Hashable, Sendable {
     public private(set) var keys: [String] = []
     private var storage: [String: JSONValue] = [:]
 
@@ -29,7 +29,7 @@ public struct JSONObject: Hashable {
     public var isEmpty: Bool { keys.isEmpty }
 }
 
-public indirect enum JSONValue: Hashable {
+public indirect enum JSONValue: Hashable, Sendable {
     case null
     case bool(Bool)
     case number(Double)
@@ -66,6 +66,14 @@ public indirect enum JSONValue: Hashable {
     public var array: [JSONValue]? { if case .array(let a) = self { return a }; return nil }
     public var object: JSONObject? { if case .object(let o) = self { return o }; return nil }
     public var isNull: Bool { if case .null = self { return true }; return false }
+    /// `null` or `[]` — what PHP clients send for "nothing". Cheap check, no serializing.
+    public var isEmptyJSON: Bool {
+        switch self {
+        case .null: return true
+        case .array(let a): return a.isEmpty
+        default: return false
+        }
+    }
 
     /// Text form of a value: strings without quotes, everything else as compact JSON.
     public var displayString: String {

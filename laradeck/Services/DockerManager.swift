@@ -95,6 +95,122 @@ final class DockerManager {
         daemonState = .unknown
     }
 
+    // MARK: Disk usage and cleanup
+
+    /// Last `docker system df` reading (images and build cache); nil until loaded.
+    private(set) var diskUsage: DockerDiskUsage?
+    private(set) var isLoadingDiskUsage = false
+    /// The cleanup running right now, if any.
+    private(set) var pruning: DockerPruneKind?
+    /// Outcome of the last cleanup ("Images: freed 5.04GB" or an error), shown in the popover.
+    private(set) var lastPruneMessage: String?
+    /// Cleanup sheet shown on the main window (preview → progress → result).
+    var pruneSheet: DockerPruneKind?
+    /// Live output of the running cleanup.
+    let pruneOutput = TerminalByteBuffer()
+
+    /// Reads how much space images and build cache use, and how much a prune would free.
+    /// `docker system df` can take a few seconds with a large build cache.
+    func refreshDiskUsage() async {
+        guard isDaemonRunning, !isLoadingDiskUsage,
+              let dockerPath = await runtimeResolver.resolvePath(for: "docker") else { return }
+        isLoadingDiskUsage = true
+        defer { isLoadingDiskUsage = false }
+        let (success, output) = await run(
+            executable: dockerPath,
+            arguments: ["system", "df", "--format", "{{json .}}"],
+            workingDirectory: NSHomeDirectory()
+        )
+        guard success else { return }
+        diskUsage = DockerDiskUsage(systemDfOutput: output)
+    }
+
+    /// Lists what a cleanup would remove (`docker system df -v`). Nil when Docker can't be read.
+    func prunePreview(_ kind: DockerPruneKind) async -> DockerPrunePreview? {
+        guard isDaemonRunning, let dockerPath = await runtimeResolver.resolvePath(for: "docker") else { return nil }
+        let (success, output) = await run(
+            executable: dockerPath,
+            arguments: ["system", "df", "-v", "--format", "{{json .}}"],
+            workingDirectory: NSHomeDirectory()
+        )
+        guard success else { return nil }
+        return DockerPrunePreview(kind: kind, verboseOutput: output)
+    }
+
+    struct PruneResult {
+        var success: Bool
+        /// Freed space on success ("5.04GB"), last output line on failure.
+        var message: String
+    }
+
+    /// Runs `docker image prune -a -f` or `docker builder prune -a -f`, streaming its output into
+    /// `pruneOutput`, then re-reads disk usage.
+    func prune(_ kind: DockerPruneKind) async -> PruneResult {
+        guard isDaemonRunning, pruning == nil,
+              let dockerPath = await runtimeResolver.resolvePath(for: "docker") else {
+            return PruneResult(success: false, message: "Docker isn't running.")
+        }
+        pruning = kind
+        lastPruneMessage = nil
+        pruneOutput.clear()
+        pruneOutput.appendText("$ \(kind.command)")
+        let (success, output) = await runStreaming(executable: dockerPath, arguments: kind.arguments, into: pruneOutput)
+        pruning = nil
+        let result: PruneResult
+        if success {
+            let freed = DockerDiskUsage.reclaimedSpace(fromPruneOutput: output) ?? "0B"
+            result = PruneResult(success: true, message: freed)
+            lastPruneMessage = "\(kind.title): freed \(freed)"
+        } else {
+            let reason = output.split(separator: "\n").last.map(String.init) ?? "unknown error"
+            result = PruneResult(success: false, message: reason)
+            lastPruneMessage = "\(kind.title) failed: \(reason)"
+        }
+        await refreshDiskUsage()
+        return result
+    }
+
+    /// Like `run`, but also appends output to `buffer` as it arrives.
+    private func runStreaming(executable: String, arguments: [String], into buffer: TerminalByteBuffer) async -> (success: Bool, output: String) {
+        var environment = await runtimeResolver.loginShellEnvironment()
+        if environment.isEmpty {
+            environment = ProcessInfo.processInfo.environment
+        }
+        environment["NO_COLOR"] = "1"
+
+        return await withCheckedContinuation { continuation in
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: executable)
+            process.arguments = arguments
+            process.currentDirectoryURL = URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true)
+            process.environment = environment
+
+            let outputPipe = Pipe()
+            process.standardOutput = outputPipe
+            process.standardError = outputPipe
+
+            let collector = OutputCollector()
+            outputPipe.fileHandleForReading.readabilityHandler = { handle in
+                let data = handle.availableData
+                guard !data.isEmpty else { return }
+                collector.append(data)
+                Task { @MainActor in buffer.appendLogStream(data) }
+            }
+
+            process.terminationHandler = { finishedProcess in
+                outputPipe.fileHandleForReading.readabilityHandler = nil
+                continuation.resume(returning: (finishedProcess.terminationStatus == 0, collector.text))
+            }
+
+            do {
+                try process.run()
+            } catch {
+                outputPipe.fileHandleForReading.readabilityHandler = nil
+                continuation.resume(returning: (false, error.localizedDescription))
+            }
+        }
+    }
+
     func reportDaemonUnavailable(for project: Project) {
         lastErrorByProject[project.id] = Self.daemonUnavailableMessage
         notificationManager.notifyDockerFailure(

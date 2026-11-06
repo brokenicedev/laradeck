@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 /// Message kinds that become rows.
@@ -68,8 +69,8 @@ public enum LockStatus: String {
 public struct DumpEntry: Identifiable, Hashable {
     public var id: UUID
     public var groupUuid: String
-    public var type: String
-    public var content: JSONValue
+    public var type: String { didSet { derived = DerivedCache() } }
+    public var content: JSONValue { didSet { derived = DerivedCache() } }
     public var origin: Origin
     public var createdAt: Date
     public var projectName: String?
@@ -79,6 +80,8 @@ public struct DumpEntry: Identifiable, Hashable {
     public var collapsed: Bool
     /// Raw `expand` action content (`level` and/or `keys`) for var-dump trees.
     public var expand: JSONValue?
+    /// Values derived from `type` + `content`, computed on first use. Reset when either changes.
+    var derived = DerivedCache()
 
     public init(id: UUID = UUID(), groupUuid: String, type: String, content: JSONValue, origin: Origin = Origin(),
                 createdAt: Date = Date(), projectName: String? = nil, color: String? = nil, size: String? = nil,
@@ -102,10 +105,29 @@ public struct DumpEntry: Identifiable, Hashable {
     /// Lock name for `create_lock` rows.
     public var lockName: String? { type == LogType.lock.rawValue ? content["name"]?.string : nil }
 
-    /// Key used to fold consecutive identical messages together.
+    /// Key used to fold consecutive identical messages together. The content goes in as a digest,
+    /// computed once, so comparing rows doesn't re-serialize large dumps on every render.
     public var groupingKey: String {
-        "\(type)|\(content.serialized())|\(origin.file ?? ""):\(origin.line ?? 0)|\(color ?? "")|\(label ?? "")"
+        "\(type)|\(contentDigest)|\(origin.file ?? ""):\(origin.line ?? 0)|\(color ?? "")|\(label ?? "")"
     }
+
+    var contentDigest: String {
+        if let digest = derived.contentDigest { return digest }
+        let digest = SHA256.hash(data: Data(content.serialized().utf8))
+            .map { String(format: "%02x", $0) }.joined()
+        derived.contentDigest = digest
+        return digest
+    }
+}
+
+/// Lazy per-entry cache shared by copies of a `DumpEntry`. Always equal and hashes to nothing, so
+/// it never changes how entries compare.
+final class DerivedCache: Hashable, @unchecked Sendable {
+    var contentDigest: String?
+    var searchBody: String?
+
+    static func == (lhs: DerivedCache, rhs: DerivedCache) -> Bool { true }
+    func hash(into hasher: inout Hasher) {}
 }
 
 public struct DumpScreen: Identifiable, Hashable {

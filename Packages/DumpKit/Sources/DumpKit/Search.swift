@@ -3,7 +3,30 @@ import Foundation
 extension DumpEntry {
     /// Lowercased text used by the search box. Indexes the relevant fields per type.
     public var searchText: String {
-        let c = content
+        [searchHead, searchBody].filter { !$0.isEmpty }.joined(separator: " ")
+    }
+
+    /// True when `query` (already lowercased) appears in `searchText`. Searches the cached parts
+    /// without building the joined string, so typing in the search box stays cheap.
+    public func matches(_ query: String) -> Bool {
+        searchHead.contains(query) || searchBody.contains(query)
+    }
+
+    /// Short metadata part of `searchText`: label, type, file, project.
+    private var searchHead: String {
+        [label ?? "", type, origin.file ?? "", projectName ?? ""]
+            .filter { !$0.isEmpty }.joined(separator: " ").lowercased()
+    }
+
+    /// The content part of `searchText`, lowercased; stripping HTML is slow, so it's computed once.
+    private var searchBody: String {
+        if let body = derived.searchBody { return body }
+        let body = Self.searchBody(logType: logType, content: content).lowercased()
+        derived.searchBody = body
+        return body
+    }
+
+    private static func searchBody(logType: LogType?, content c: JSONValue) -> String {
         var typeField: String
         switch logType {
         case .log:
@@ -45,8 +68,7 @@ extension DumpEntry {
         default:
             typeField = c.serialized()
         }
-        return [label ?? "", type, origin.file ?? "", projectName ?? "", typeField]
-            .filter { !$0.isEmpty }.joined(separator: " ").lowercased()
+        return typeField
     }
 
     /// Text placed on the clipboard by "Copy".

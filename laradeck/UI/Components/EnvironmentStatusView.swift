@@ -76,6 +76,13 @@ struct EnvironmentStatusView: View {
                     }
                     .controlSize(.small)
                 }
+                if docker == .running {
+                    DockerDiskUsageView { kind in
+                        showingDetails = false
+                        // Let the popover close before the sheet opens on the window.
+                        DispatchQueue.main.async { appState.dockerManager.pruneSheet = kind }
+                    }
+                }
             }
             Divider()
             detailRow(color: php.color, systemImage: "chevron.left.forwardslash.chevron.right",

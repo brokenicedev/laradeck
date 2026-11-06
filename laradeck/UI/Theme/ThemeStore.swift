@@ -53,8 +53,8 @@ final class ThemeStore {
 
 extension View {
     /// Applies the active theme to a scene's root: color scheme, title bar color, monospaced font
-    /// for mono themes. Flat themes keep the system accent on controls; glass (Snowflake) themes
-    /// tint controls with their accent, like Snowflake Desktop.
+    /// for mono themes. Controls keep the system look on every theme: tinting them made bordered
+    /// buttons turn blue in the active window and gray in an inactive one.
     func appThemed() -> some View {
         modifier(AppThemeModifier())
     }
@@ -83,7 +83,6 @@ private struct AppThemeModifier: ViewModifier {
         content
             .preferredColorScheme(theme.colorScheme)
             .fontDesign(theme.monospace ? .monospaced : .default)
-            .tint(theme.glass ? theme.accent : nil)
             .themedToolbar()
     }
 }

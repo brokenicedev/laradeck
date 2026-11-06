@@ -16,11 +16,15 @@ public final class HTTPServer: @unchecked Sendable {
     public var maxRequestBytes = 512 * 1024 * 1024
     public var onStateChange: (@Sendable (State) -> Void)?
 
+    /// Adds permissive CORS headers to every response (headers the handler already set win).
+    public var cors = true
+
     private let handler: Handler
-    private let queue = DispatchQueue(label: "laradeck.dumps.http")
+    private let queue: DispatchQueue
     private var listener: NWListener?
 
-    public init(handler: @escaping Handler) {
+    public init(label: String = "laradeck.http", handler: @escaping Handler) {
+        self.queue = DispatchQueue(label: label)
         self.handler = handler
     }
 
@@ -71,7 +75,7 @@ public final class HTTPServer: @unchecked Sendable {
 
     private static func describe(_ error: NWError) -> String {
         if case .posix(let code) = error, code == .EADDRINUSE {
-            return "Port is already in use (is another debug viewer running?)"
+            return "Port is already in use"
         }
         return "\(error)"
     }
@@ -113,6 +117,6 @@ public final class HTTPServer: @unchecked Sendable {
     }
 
     private func send(_ response: HTTPResponse, on connection: NWConnection) {
-        connection.send(content: response.serialized(), completion: .contentProcessed { _ in connection.cancel() })
+        connection.send(content: response.serialized(cors: cors), completion: .contentProcessed { _ in connection.cancel() })
     }
 }

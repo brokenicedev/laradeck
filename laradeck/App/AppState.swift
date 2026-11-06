@@ -23,6 +23,7 @@ final class AppState {
     var selectedProjectId: UUID? {
         didSet {
             guard selectedProjectId != nil else { return }
+            selectedMockServerId = nil
             selectedDatabaseId = nil
             selectedDockerDatabaseId = nil
             selectedServiceId = nil
@@ -34,6 +35,7 @@ final class AppState {
     var selectedDatabaseId: UUID? {
         didSet {
             guard selectedDatabaseId != nil else { return }
+            selectedMockServerId = nil
             selectedProjectId = nil
             selectedDockerDatabaseId = nil
             selectedServiceId = nil
@@ -46,6 +48,7 @@ final class AppState {
     var selectedDockerDatabaseId: String? {
         didSet {
             guard selectedDockerDatabaseId != nil else { return }
+            selectedMockServerId = nil
             selectedProjectId = nil
             selectedDatabaseId = nil
             selectedServiceId = nil
@@ -58,6 +61,7 @@ final class AppState {
     var selectedServiceId: UUID? {
         didSet {
             guard selectedServiceId != nil else { return }
+            selectedMockServerId = nil
             selectedProjectId = nil
             selectedDatabaseId = nil
             selectedDockerDatabaseId = nil
@@ -70,6 +74,7 @@ final class AppState {
     var showingDatabases = false {
         didSet {
             guard showingDatabases else { return }
+            selectedMockServerId = nil
             selectedProjectId = nil
             selectedDatabaseId = nil
             selectedDockerDatabaseId = nil
@@ -82,6 +87,7 @@ final class AppState {
     var showingPhp = false {
         didSet {
             guard showingPhp else { return }
+            selectedMockServerId = nil
             selectedProjectId = nil
             selectedDatabaseId = nil
             selectedDockerDatabaseId = nil
@@ -94,12 +100,26 @@ final class AppState {
     var showingNode = false {
         didSet {
             guard showingNode else { return }
+            selectedMockServerId = nil
             selectedProjectId = nil
             selectedDatabaseId = nil
             selectedDockerDatabaseId = nil
             selectedServiceId = nil
             showingDatabases = false
             showingPhp = false
+        }
+    }
+    /// A mock API server in the sidebar's Mock APIs section.
+    var selectedMockServerId: UUID? {
+        didSet {
+            guard selectedMockServerId != nil else { return }
+            selectedProjectId = nil
+            selectedDatabaseId = nil
+            selectedDockerDatabaseId = nil
+            selectedServiceId = nil
+            showingDatabases = false
+            showingPhp = false
+            showingNode = false
         }
     }
     /// Set by the menu bar panel's "+" button — the main window observes this to open its own
@@ -128,6 +148,7 @@ final class AppState {
     let phpManager: PhpManager
     let nodeManager: NodeManager
     let dumpService: DumpService
+    let mockAPIService: MockAPIService
 
     /// In-memory Laravel insights per project — avoids empty→full flash when leaving/returning to the dashboard.
     private(set) var laravelInsightsCache: [UUID: LaravelInsights] = [:]
@@ -163,6 +184,7 @@ final class AppState {
         self.phpManager = PhpManager()
         self.nodeManager = NodeManager()
         self.dumpService = DumpService.shared
+        self.mockAPIService = MockAPIService.shared
 
         RuntimeResolver.shared.loadPersistedOverrides()
         #if SPARKLE
@@ -239,6 +261,7 @@ final class AppState {
             self?.notificationManager.notifyDump(projectName: title, message: body)
         }
         dumpService.start()
+        mockAPIService.start()
     }
 
     var hasDockerComposeProjects: Bool {

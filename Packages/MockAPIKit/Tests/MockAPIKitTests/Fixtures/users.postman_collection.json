@@ -1,0 +1,51 @@
+{
+  "info": {
+    "_postman_id": "1f6c7b9e-0000-4000-8000-000000000001",
+    "name": "Users API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [{ "key": "baseUrl", "value": "https://api.example.test/v1" }],
+  "item": [
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "List users",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/users?page=1", "host": ["{{baseUrl}}"], "path": ["users"], "query": [{ "key": "page", "value": "1" }] }
+          },
+          "response": [
+            {
+              "name": "Page 1",
+              "originalRequest": { "method": "GET", "url": { "raw": "{{baseUrl}}/users?page=1", "host": ["{{baseUrl}}"], "path": ["users"], "query": [{ "key": "page", "value": "1" }] } },
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Content-Length", "value": "40" }],
+              "body": "{\"data\":[{\"id\":1,\"name\":\"Ada\"}],\"page\":1}"
+            },
+            {
+              "name": "Page 2",
+              "originalRequest": { "method": "GET", "url": { "raw": "{{baseUrl}}/users?page=2", "host": ["{{baseUrl}}"], "path": ["users"], "query": [{ "key": "page", "value": "2" }] } },
+              "code": 200,
+              "header": [],
+              "body": "{\"data\":[],\"page\":2}"
+            }
+          ]
+        },
+        {
+          "name": "Get user",
+          "request": { "method": "GET", "url": "{{baseUrl}}/users/:id" },
+          "response": [
+            { "name": "Not found", "code": 404, "header": [], "body": "{\"message\":\"Not found\"}" },
+            { "name": "Found", "code": 200, "header": [], "body": "{\"id\":1}" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Login",
+      "request": { "method": "POST", "url": "https://auth.example.test/oauth/token" }
+    }
+  ]
+}

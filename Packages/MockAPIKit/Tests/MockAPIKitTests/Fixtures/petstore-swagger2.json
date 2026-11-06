@@ -1,0 +1,37 @@
+{
+  "swagger": "2.0",
+  "info": { "title": "Swagger Petstore", "version": "1.0" },
+  "basePath": "/v2",
+  "produces": ["application/json"],
+  "paths": {
+    "/pet/{petId}": {
+      "get": {
+        "summary": "Find pet by ID",
+        "responses": {
+          "200": { "description": "ok", "schema": { "$ref": "#/definitions/Pet" } },
+          "400": { "description": "Invalid ID supplied" }
+        }
+      }
+    },
+    "/store/inventory": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "ok",
+            "examples": { "application/json": { "available": 7, "sold": 2 } }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "Pet": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "integer" },
+        "name": { "type": "string" },
+        "photoUrls": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

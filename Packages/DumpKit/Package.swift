@@ -7,8 +7,11 @@ let package = Package(
     products: [
         .library(name: "DumpKit", targets: ["DumpKit"]),
     ],
+    dependencies: [
+        .package(path: "../HTTPKit"),
+    ],
     targets: [
-        .target(name: "DumpKit"),
+        .target(name: "DumpKit", dependencies: ["HTTPKit"]),
         .testTarget(name: "DumpKitTests", dependencies: ["DumpKit"]),
     ]
 )

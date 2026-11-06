@@ -1,3 +1,4 @@
+import MockAPIKit
 import DBEngineKit
 import PhpSwitcherCore
 import SwiftUI
@@ -56,6 +57,12 @@ struct MenuBarView: View {
         appState.databaseManager.rows.filter {
             $0.service.name.matchesFilter(query) || $0.service.kind.displayName.matchesFilter(query)
                 || String($0.service.port).matchesFilter(query)
+        }
+    }
+
+    private var filteredMockServers: [MockServer] {
+        appState.mockAPIService.servers.filter {
+            $0.name.matchesFilter(query) || String($0.port).matchesFilter(query)
         }
     }
 
@@ -179,14 +186,26 @@ struct MenuBarView: View {
     @ViewBuilder
     private var databaseList: some View {
         let rows = filteredDatabases
-        if !rows.isEmpty {
-            VStack(alignment: .leading, spacing: 0) {
-                MenuBarSectionHeader(title: "Databases")
-                ForEach(rows) { row in
-                    MenuBarDatabaseRow(row: row)
+        let mocks = filteredMockServers
+        if !rows.isEmpty || !mocks.isEmpty {
+            if !rows.isEmpty {
+                VStack(alignment: .leading, spacing: 0) {
+                    MenuBarSectionHeader(title: "Databases")
+                    ForEach(rows) { row in
+                        MenuBarDatabaseRow(row: row)
+                    }
                 }
+                .padding(.bottom, 6)
             }
-            .padding(.bottom, 6)
+            if !mocks.isEmpty {
+                VStack(alignment: .leading, spacing: 0) {
+                    MenuBarSectionHeader(title: "Mock APIs")
+                    ForEach(mocks) { server in
+                        MenuBarMockServerRow(server: server)
+                    }
+                }
+                .padding(.bottom, 6)
+            }
             Divider()
             MenuBarSectionHeader(title: "Projects")
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -491,5 +510,57 @@ private struct MenuBarSectionHeader: View {
             .padding(.horizontal, 14)
             .padding(.top, 8)
             .padding(.bottom, 2)
+    }
+}
+
+private struct MenuBarMockServerRow: View {
+    @Environment(AppState.self) private var appState
+    let server: MockServer
+
+    @State private var isHovering = false
+
+    var body: some View {
+        let service = appState.mockAPIService
+        let state = service.state(server.id)
+        let running = service.isRunning(server.id)
+        HStack(spacing: 10) {
+            Image(systemName: "point.3.connected.trianglepath.dotted")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.teal)
+                .frame(width: 26)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(server.name)
+                    .font(.system(size: 12.5, weight: .medium))
+                    .lineLimit(1)
+                Text(verbatim: ":\(server.port) · \(server.routes.count) routes")
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 8)
+
+            Button {
+                service.toggle(server.id)
+            } label: {
+                HStack(spacing: 6) {
+                    Text(running ? "Stop" : "Start")
+                        .font(.system(size: 11, weight: .medium))
+                    StatusDotView(color: state.dotColor, size: 7)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(Color.primary.opacity(0.08), in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .help(state.failureMessage ?? service.baseURL(for: server))
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 6)
+        .frame(height: 36, alignment: .center)
+        .contentShape(Rectangle())
+        .background(Color.primary.opacity(isHovering ? 0.05 : 0))
+        .onHover { isHovering = $0 }
     }
 }

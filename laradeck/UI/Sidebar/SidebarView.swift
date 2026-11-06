@@ -1,4 +1,6 @@
 import DBEngineKit
+import MockAPIKit
+import UniformTypeIdentifiers
 import PhpSwitcherCore
 import SwiftUI
 import AppKit
@@ -16,6 +18,9 @@ struct SidebarView: View {
     @State private var showingNewService = false
     @AppStorage("sidebarServicesExpanded") private var servicesExpanded = true
     @AppStorage("sidebarDatabasesExpanded") private var databasesExpanded = true
+    @AppStorage("sidebarMocksExpanded") private var mocksExpanded = true
+    @State private var showingMockImporter = false
+    @State private var mockImportMessage: MockImportMessage?
 
     var body: some View {
         projectList
@@ -70,6 +75,19 @@ struct SidebarView: View {
             Button("Create") {
                 createGroupFromPrompt()
             }
+        }
+        .fileImporter(
+            isPresented: $showingMockImporter,
+            allowedContentTypes: MockImportMessage.importTypes,
+            onCompletion: importMockServer
+        )
+        .alert(mockImportMessage?.title ?? "", isPresented: Binding(
+            get: { mockImportMessage != nil },
+            set: { if !$0 { mockImportMessage = nil } }
+        )) {
+            Button("OK") { mockImportMessage = nil }
+        } message: {
+            Text(mockImportMessage?.text ?? "")
         }
         .alert("Rename Group", isPresented: renamingGroupBinding) {
             TextField("Group name", text: $renameGroupText)
@@ -133,6 +151,27 @@ struct SidebarView: View {
                     SidebarServicesHeader()
                 }
             }
+            if searchText.isEmpty || !filteredMockServers.isEmpty {
+                Section(isExpanded: $mocksExpanded) {
+                    ForEach(filteredMockServers) { server in
+                        SidebarMockServerRow(server: server)
+                            .tag(SidebarItem.mockServer(server.id))
+                    }
+                    if appState.mockAPIService.servers.isEmpty && searchText.isEmpty {
+                        SidebarAddRowPlaceholder(
+                            systemImage: "point.3.connected.trianglepath.dotted",
+                            title: "Add mock API",
+                            subtitle: "Empty, or from OpenAPI / Postman"
+                        ) { newMockServer() }
+                        .selectionDisabled()
+                    }
+                } header: {
+                    SidebarMocksHeader(
+                        onNew: { newMockServer() },
+                        onImport: { showingMockImporter = true }
+                    )
+                }
+            }
             if !favorites.isEmpty {
                 Section("Favorites") {
                     reorderableRows(favorites)
@@ -188,6 +227,7 @@ struct SidebarView: View {
                 if let id = appState.selectedDatabaseId { return .database(id) }
                 if let id = appState.selectedDockerDatabaseId { return .dockerDatabase(id) }
                 if let id = appState.selectedServiceId { return .service(id) }
+                if let id = appState.selectedMockServerId { return .mockServer(id) }
                 return nil
             },
             set: { item in
@@ -198,6 +238,7 @@ struct SidebarView: View {
                 case .database(let id): appState.selectedDatabaseId = id
                 case .dockerDatabase(let id): appState.selectedDockerDatabaseId = id
                 case .service(let id): appState.selectedServiceId = id
+                case .mockServer(let id): appState.selectedMockServerId = id
                 case nil:
                     appState.showingPhp = false
                     appState.showingNode = false
@@ -205,9 +246,42 @@ struct SidebarView: View {
                     appState.selectedDatabaseId = nil
                     appState.selectedDockerDatabaseId = nil
                     appState.selectedServiceId = nil
+                    appState.selectedMockServerId = nil
                 }
             }
         )
+    }
+
+    private var filteredMockServers: [MockServer] {
+        let servers = appState.mockAPIService.servers
+        guard !searchText.isEmpty else { return servers }
+        return servers.filter {
+            $0.name.localizedCaseInsensitiveContains(searchText) || String($0.port).contains(searchText)
+        }
+    }
+
+    private func newMockServer() {
+        let server = appState.mockAPIService.newServer()
+        mocksExpanded = true
+        appState.selectedMockServerId = server.id
+    }
+
+    private func importMockServer(_ result: Result<URL, Error>) {
+        guard case .success(let url) = result else { return }
+        do {
+            let imported = try appState.mockAPIService.importFile(url)
+            mocksExpanded = true
+            appState.selectedMockServerId = imported.server.id
+            if !imported.warnings.isEmpty {
+                mockImportMessage = MockImportMessage(
+                    title: "Imported with warnings",
+                    text: "\(imported.format.rawValue) · \(imported.server.routes.count) routes\n\n"
+                        + imported.warnings.prefix(12).map { "• \($0)" }.joined(separator: "\n")
+                )
+            }
+        } catch {
+            mockImportMessage = MockImportMessage(title: "Couldn't Import", text: "\(url.lastPathComponent): \(error.localizedDescription)")
+        }
     }
 
     private var filteredDatabases: [DatabaseManager.Row] {
@@ -750,6 +824,7 @@ enum SidebarItem: Hashable {
     case database(UUID)
     case dockerDatabase(String)
     case service(UUID)
+    case mockServer(UUID)
 }
 
 /// The Homebrew PHP row at the top of Services: linked version, opens the PHP page.
@@ -843,5 +918,138 @@ private struct SidebarNodeRow: View {
         if let version = node.defaultInstallation?.version { parts.append(version.description) }
         if node.installed.count > 1 { parts.append("\(node.installed.count) versions") }
         return parts.joined(separator: " · ")
+    }
+}
+
+// MARK: - Mock APIs
+
+struct MockImportMessage {
+    var title: String
+    var text: String
+
+    /// JSON and YAML: OpenAPI / Swagger specs, Postman collections, Laradeck mock exports.
+    static var importTypes: [UTType] {
+        [.json, UTType(filenameExtension: "yaml"), UTType(filenameExtension: "yml")].compactMap { $0 }
+    }
+}
+
+private struct SidebarMocksHeader: View {
+    @Environment(AppState.self) private var appState
+    let onNew: () -> Void
+    let onImport: () -> Void
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Text("Mock APIs")
+            let running = appState.mockAPIService.runningCount
+            if running > 0 {
+                Text("\(running) running")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Menu {
+                Button("New Mock API", systemImage: "plus", action: onNew)
+                Button("Import OpenAPI / Postman…", systemImage: "square.and.arrow.down", action: onImport)
+            } label: {
+                Image(systemName: "plus")
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .help("Add a mock API")
+        }
+        .help("Local mock API servers — drop an OpenAPI spec or a Postman collection on the window to add one")
+    }
+}
+
+private struct SidebarMockServerRow: View {
+    @Environment(AppState.self) private var appState
+    let server: MockServer
+    @State private var confirmingDelete = false
+
+    private var service: MockAPIService { appState.mockAPIService }
+
+    var body: some View {
+        let state = service.state(server.id)
+        let unmatched = service.unmatchedCount[server.id] ?? 0
+        HStack {
+            Image(systemName: "point.3.connected.trianglepath.dotted")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.teal)
+                .frame(width: 28, height: 28)
+            StatusDotView(color: state.dotColor, size: 8, pulsing: state.isStarting)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(server.name)
+                Text(verbatim: ":\(server.port) · \(server.routes.count) route\(server.routes.count == 1 ? "" : "s")")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer()
+            if unmatched > 0 {
+                Text("\(unmatched)")
+                    .font(.caption2.weight(.semibold).monospacedDigit())
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 1)
+                    .background(Capsule().fill(.orange.opacity(0.25)))
+                    .help("Requests that matched no route")
+            }
+        }
+        .contextMenu {
+            MockServerMenuItems(server: server, onDelete: { confirmingDelete = true })
+        }
+        .confirmationDialog("Delete “\(server.name)”?", isPresented: $confirmingDelete) {
+            Button("Delete", role: .destructive) {
+                if appState.selectedMockServerId == server.id { appState.selectedMockServerId = nil }
+                service.delete(server.id)
+            }
+        } message: {
+            Text("Its routes and responses are removed. Export it first to keep a copy.")
+        }
+    }
+}
+
+/// Start/stop, copy URL, duplicate, export, delete — shared by the sidebar row and the detail page.
+struct MockServerMenuItems: View {
+    @Environment(AppState.self) private var appState
+    let server: MockServer
+    let onDelete: () -> Void
+
+    var body: some View {
+        let service = appState.mockAPIService
+        Button(service.isRunning(server.id) ? "Stop" : "Start") { service.toggle(server.id) }
+        Button("Copy Base URL") {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(service.baseURL(for: server), forType: .string)
+        }
+        Divider()
+        Button("Duplicate") {
+            if let copy = service.duplicate(server.id) { appState.selectedMockServerId = copy.id }
+        }
+        Button("Export…") { service.exportServer(server.id) }
+        Divider()
+        Button("Delete…", role: .destructive, action: onDelete)
+    }
+}
+
+extension HTTPServer.State {
+    var dotColor: Color {
+        switch self {
+        case .running: return .green
+        case .starting: return .yellow
+        case .failed: return .red
+        case .stopped: return .gray
+        }
+    }
+
+    var isStarting: Bool {
+        if case .starting = self { return true }
+        return false
+    }
+
+    var failureMessage: String? {
+        if case .failed(_, let message) = self { return message }
+        return nil
     }
 }

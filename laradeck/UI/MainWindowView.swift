@@ -1,4 +1,5 @@
 import DBEngineKit
+import MockAPIKit
 import SwiftUI
 import AppKit
 
@@ -127,6 +128,9 @@ struct MainWindowView: View {
                 DatabasesView()
             } else if let id = appState.selectedDatabaseId, let row = appState.databaseManager.row(id: id) {
                 DatabaseDetailView(row: row)
+                    .id(id)
+            } else if let id = appState.selectedMockServerId, appState.mockAPIService.server(id: id) != nil {
+                MockServerDetailView(serverId: id)
                     .id(id)
             } else if let id = appState.selectedServiceId, let service = appState.generalServices.service(id: id) {
                 GeneralServiceDetailView(service: service)
@@ -283,6 +287,8 @@ struct MainWindowView: View {
                     .font(.system(size: 40))
                 Text("Drop to add project")
                     .font(.title3.weight(.semibold))
+                Text("…or a compose YAML, an OpenAPI spec or a Postman collection")
+                    .font(.callout)
             }
             .foregroundStyle(Color.accentColor)
             .padding(24)
@@ -324,6 +330,20 @@ struct MainWindowView: View {
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: fileURL.path, isDirectory: &isDirectory) else { return }
 
+        // An OpenAPI/Swagger spec, a Postman collection or a mock export becomes a mock API.
+        if !isDirectory.boolValue, MockAPIService.looksLikeMockSource(fileURL) {
+            do {
+                let result = try appState.mockAPIService.importFile(fileURL)
+                appState.selectedMockServerId = result.server.id
+                if !result.warnings.isEmpty {
+                    profileImportNotice = "Imported “\(result.server.name)” (\(result.format.rawValue), \(result.server.routes.count) routes) with warnings:\n"
+                        + result.warnings.prefix(8).map { "• \($0)" }.joined(separator: "\n")
+                }
+            } catch {
+                serviceImportError = "\(fileURL.lastPathComponent): \(error.localizedDescription)"
+            }
+            return
+        }
         // A compose YAML becomes a general service (Services section in the sidebar).
         if !isDirectory.boolValue, ["yaml", "yml"].contains(fileURL.pathExtension.lowercased()) {
             Task {

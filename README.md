@@ -58,6 +58,7 @@ One native Mac app to run and monitor every Laravel project on your machine:
 | **Laravel** | Insights, artisan shortcuts, env/migration/storage checks |
 | **Menu bar** | Start/stop and open in browser without raising the main window |
 | **Logs** | Integrated terminal viewer per process, `laravel.log`, compose output |
+| **Mock APIs** | Local mock servers from OpenAPI / Swagger or Postman collections — rules, templates, request log |
 
 Built with **SwiftUI**. Free. Made by [**brokenice.it**](https://brokenice.it).
 

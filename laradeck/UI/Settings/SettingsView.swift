@@ -60,6 +60,9 @@ struct SettingsView: View {
             DumpsSettingsView()
                 .tabItem { Label("Dumps", systemImage: "ladybug") }
 
+            MockAPISettingsView()
+                .tabItem { Label("Mock APIs", systemImage: "point.3.connected.trianglepath.dotted") }
+
             CommandsSettingsView()
                 .tabItem { Label("Commands", systemImage: "terminal") }
         }

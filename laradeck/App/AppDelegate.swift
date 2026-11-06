@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     /// `applicationWillTerminate` when multiple workers must be signalled.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         appState?.processManager.stopAllProcessesForAppTermination()
+        MockAPIService.shared.flush()
         return .terminateNow
     }
 

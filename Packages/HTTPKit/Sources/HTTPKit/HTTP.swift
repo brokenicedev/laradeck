@@ -1,23 +1,26 @@
 import Foundation
 
-public struct HTTPRequest {
+public struct HTTPRequest: Sendable {
     public var method: String
     public var path: String
     public var query: [String: String]
+    /// The query string as received, without the leading `?`.
+    public var rawQuery: String
     /// Header names are lowercased.
     public var headers: [String: String]
     public var body: Data
 
-    public init(method: String, path: String, query: [String: String] = [:], headers: [String: String] = [:], body: Data = Data()) {
+    public init(method: String, path: String, query: [String: String] = [:], rawQuery: String = "", headers: [String: String] = [:], body: Data = Data()) {
         self.method = method
         self.path = path
         self.query = query
+        self.rawQuery = rawQuery
         self.headers = headers
         self.body = body
     }
 }
 
-public struct HTTPResponse {
+public struct HTTPResponse: Sendable {
     public var status: Int
     public var headers: [(String, String)]
     public var body: Data
@@ -36,15 +39,21 @@ public struct HTTPResponse {
         HTTPResponse(status: status, headers: [("Content-Type", "text/plain; charset=utf-8")], body: Data(text.utf8))
     }
 
-    public func serialized() -> Data {
+    public func serialized(cors: Bool = true) -> Data {
         var head = "HTTP/1.1 \(status) \(HTTPResponse.reason(status))\r\n"
-        var all = headers
+        var all = headers.filter { !["content-length", "connection"].contains($0.0.lowercased()) }
         all.append(("Content-Length", String(body.count)))
         all.append(("Connection", "close"))
-        // CORS headers are sent, so browser clients can post too.
-        all.append(("Access-Control-Allow-Origin", "*"))
-        all.append(("Access-Control-Allow-Headers", "*"))
-        all.append(("Access-Control-Allow-Methods", "GET,HEAD,PUT,PATCH,POST,DELETE"))
+        if cors {
+            // CORS headers are sent, so browser clients can post too.
+            let present = Set(all.map { $0.0.lowercased() })
+            for (k, v) in [("Access-Control-Allow-Origin", "*"),
+                           ("Access-Control-Allow-Headers", "*"),
+                           ("Access-Control-Allow-Methods", "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS")]
+            where !present.contains(k.lowercased()) {
+                all.append((k, v))
+            }
+        }
         for (k, v) in all { head += "\(k): \(v)\r\n" }
         head += "\r\n"
         var data = Data(head.utf8)
@@ -52,14 +61,52 @@ public struct HTTPResponse {
         return data
     }
 
-    static func reason(_ status: Int) -> String {
+    public static func reason(_ status: Int) -> String {
         switch status {
         case 100: return "Continue"
+        case 101: return "Switching Protocols"
         case 200: return "OK"
+        case 201: return "Created"
+        case 202: return "Accepted"
+        case 203: return "Non-Authoritative Information"
         case 204: return "No Content"
+        case 205: return "Reset Content"
+        case 206: return "Partial Content"
+        case 300: return "Multiple Choices"
+        case 301: return "Moved Permanently"
+        case 302: return "Found"
+        case 303: return "See Other"
+        case 304: return "Not Modified"
+        case 307: return "Temporary Redirect"
+        case 308: return "Permanent Redirect"
         case 400: return "Bad Request"
+        case 401: return "Unauthorized"
+        case 402: return "Payment Required"
+        case 403: return "Forbidden"
         case 404: return "Not Found"
+        case 405: return "Method Not Allowed"
+        case 406: return "Not Acceptable"
+        case 408: return "Request Timeout"
+        case 409: return "Conflict"
+        case 410: return "Gone"
+        case 411: return "Length Required"
+        case 412: return "Precondition Failed"
         case 413: return "Payload Too Large"
+        case 415: return "Unsupported Media Type"
+        case 418: return "I'm a teapot"
+        case 419: return "Page Expired"
+        case 422: return "Unprocessable Content"
+        case 423: return "Locked"
+        case 425: return "Too Early"
+        case 428: return "Precondition Required"
+        case 429: return "Too Many Requests"
+        case 431: return "Request Header Fields Too Large"
+        case 451: return "Unavailable For Legal Reasons"
+        case 500: return "Internal Server Error"
+        case 501: return "Not Implemented"
+        case 502: return "Bad Gateway"
+        case 503: return "Service Unavailable"
+        case 504: return "Gateway Timeout"
         default: return "Status"
         }
     }
@@ -96,6 +143,7 @@ public enum HTTPParser {
 
         let target = String(parts[1])
         let (path, query) = splitTarget(target)
+        let rawQuery = target.split(separator: "?", maxSplits: 1, omittingEmptySubsequences: false).dropFirst().first.map(String.init) ?? ""
         let bodyStart = range.upperBound
         let expectsContinue = headers["expect"]?.lowercased() == "100-continue"
 
@@ -111,7 +159,7 @@ public enum HTTPParser {
             guard data.count - bodyStart >= length else { return .incomplete(expectsContinue: expectsContinue) }
             body = Data(data[bodyStart..<(bodyStart + length)])
         }
-        return .complete(HTTPRequest(method: String(parts[0]).uppercased(), path: path, query: query, headers: headers, body: body))
+        return .complete(HTTPRequest(method: String(parts[0]).uppercased(), path: path, query: query, rawQuery: rawQuery, headers: headers, body: body))
     }
 
     static func splitTarget(_ target: String) -> (String, [String: String]) {
